@@ -13,7 +13,10 @@
             <RowDefinition></RowDefinition>
             <RowDefinition Height="auto"></RowDefinition>
         </Grid.RowDefinitions>
-        <Rectangle Grid.Row="0"/>
+        <!--<Rectangle Grid.Row="0"/>-->
+        <Viewbox Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <ProgressBar x:Name="ProgressBar" Grid.Row="0" Width="200" Height="15" IsIndeterminate="True" Visibility="Collapsed"/>
+        </Viewbox>
         <Image x:Name="Image1" Grid.Row="0"></Image>
         <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="5,5,5,5">
             <Grid.ColumnDefinitions>

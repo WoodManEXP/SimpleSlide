@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Search;
 using Windows.Storage.Streams;
+using Windows.System.Threading;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media.Imaging;
 
@@ -17,13 +18,13 @@ namespace SimpleSlide
     {
         public enum PlayerCommands
         {
-            Stop,       // Stop the player
-            Play,       // Start new from StartFolder
-            Pause,      // Pause play
-            Continue,   // Contiue play
-            Forward,    // Move on to next item/pic
-            Backward,   // Go to previous item/pic
-            ChangeSpeed // Change speed to this many milliseconds between images (Value)
+            Stop,               // Stop the player
+            NewFolderStart,     // Start new from StartFolder
+            Pause,              // Pause play
+            Continue,           // Contiue play
+            Next,               // Move on to next item/pic
+            Previous,           // Go to previous item/pic
+            ChangeSpeed         // Change speed to this many milliseconds between images (Value)
         }
         public PlayerCommands Command { get; set; }
         public int Value { get; set; } = 0;
@@ -37,7 +38,6 @@ namespace SimpleSlide
     {
         public int CurrentFolderNum { get; set; } = 0;
         public IReadOnlyList<StorageFolder>? FolderList { get; set; }
-
         public FolderState() { }
     }
 
@@ -55,6 +55,7 @@ namespace SimpleSlide
         public PlayerState CurrentPlayerState { get; set; }
         public String? PickedFolderToken { get; set; }
         public IProgress<String> FNameProgress;
+        public IProgress<Boolean> ProgressBarProgress;
 
         // For passing commands from UI to Player
         public ConcurrentQueue<PlayerCommand> CommandQueue { get; private set; }
@@ -62,6 +63,9 @@ namespace SimpleSlide
         private int NextFileNum;
         private Stack<FolderState> FoldersStack = new();
         public int DelayBetweenImges { get; set; }
+        private int LastImageNumThisFolder { get; set; }
+        private Boolean Ready { get; set; }
+        ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
 
         public Image?[] ImagePane = new Image[3];
 
@@ -69,12 +73,16 @@ namespace SimpleSlide
         /// Contstructor
         /// </summary>
         /// <param name="fNameProgress"></param>
-        public Player(String pickedFolderToken, Progress<String> fNameProgress)
+        /// <param name="progressBarProgress"></param>
+        public Player(String pickedFolderToken, Progress<String> fNameProgress, Progress<Boolean>progressBarProgress)
         {
             PickedFolderToken = pickedFolderToken;
             FNameProgress = fNameProgress;
+            ProgressBarProgress = progressBarProgress;
             CommandQueue = new();
             CurrentPlayerState = PlayerState.DoingNothing; // Doing Nothing;
+            LastImageNumThisFolder = 0;
+            Ready = false;
         }
 
         /// <summary>
@@ -83,17 +91,18 @@ namespace SimpleSlide
         /// <returns></returns>
         /// <remarks>
         /// Log running background task
+        /// Responds to commands comin i from CommandQueue.
         /// Plays each media file in a folder then begis to descend into the subfolders.
-        /// Recursive algorithm, but it is implemeted with a stack.
+        /// Recursive algorithm, implemeted via Stack class.
+        /// Images are played on yet another thread referenced by ThreadPoolTimer.
         /// </remarks>
         public async Task Play()
         {
             PlayerCommand? playerCommand;
 
-            int i = 0;
             while (true)
             {
-                // Anythig on the command queue?
+                // Anything on the command queue?
                 if (CommandQueue.TryDequeue(out playerCommand))
                 {
                     switch (playerCommand.Command)
@@ -107,10 +116,15 @@ namespace SimpleSlide
                         case PlayerCommand.PlayerCommands.Continue:
                             CurrentPlayerState = PlayerState.Playing;
                             break;
-                        case PlayerCommand.PlayerCommands.Play:
-                            CurrentPlayerState = PlayerState.Playing;
+                        case PlayerCommand.PlayerCommands.NewFolderStart:
+                            //ProgressBarProgress.Report(true);
                             PrepForFolder();
-                            i = 0; // Start new
+                           //ProgressBarProgress.Report(false);
+                            CurrentPlayerState = PlayerState.Playing;
+                            LastImageNumThisFolder = 0; // Start new
+                            ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
+                                                    , TimeSpan.FromMilliseconds(DelayBetweenImges));
+                            Ready = true;
                             break;
                         case PlayerCommand.PlayerCommands.ChangeSpeed:
                             DelayBetweenImges = playerCommand.Value; // Miliseconds
@@ -119,42 +133,64 @@ namespace SimpleSlide
                             break;
                     }
                 }
+                // As this is an infinite loop, yield a bit to give the rest of the system a chance
+                await Task.Delay(50);
+            }
+        }
 
-                if (PlayerState.Playing == CurrentPlayerState)
+        /// <summary>
+        /// Respod to timer event and play next image
+        /// </summary>
+        /// <param name="timer"></param>
+        public async void TimerElapsedHandler(ThreadPoolTimer timer)
+        {
+            if (Ready && CurrentPlayerState == PlayerState.Playing)
+                ShowNextImage();
+
+            // Schedule to return in DelayBetweenImges milliseconds
+            ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
+                        , TimeSpan.FromMilliseconds(DelayBetweenImges));
+        }
+
+        private async void ShowNextImage()
+        {
+            /*
+             * if (there is a next media file in CurrentFolderFileList)
+             *  play it
+             * else
+             *  descend into next folder in this folder
+             *          PrepFolder();
+             * 
+             */
+            if (null != CurrentFolderFileList) // List is ready/available
+            {
+                // Round and round
+                if (LastImageNumThisFolder >= CurrentFolderFileList.Count)
+                    LastImageNumThisFolder = 0;
+
+                Image? imagePane = ImagePane[1];
+
+                StorageFile sF = CurrentFolderFileList[LastImageNumThisFolder];
+
+                using (IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read))
                 {
-                    /*
-                     * if (there is a next media file in CurrentFolderFileList)
-                     *  play it
-                     * else
-                     *  descend into next folder in this folder
-                     *          PrepFolder();
-                     * 
-                     */
-                    if (null != CurrentFolderFileList) // List is ready/available
+                    // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
+                    // via a lambda ex[pression, to that thread.
+                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                        Windows.UI.Core.CoreDispatcherPriority.Normal,
+                        async () =>
                     {
-                        // Round and round
-                        if (i >= CurrentFolderFileList.Count)
-                            i = 0;
-
-                        Image? imagePane = ImagePane[1];
-
-                        StorageFile sF = CurrentFolderFileList[i];
-
-                        using (IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read))
-                        {
-                            // Set the image source to the selected bitmap 
-                            BitmapImage bitmapImage = new BitmapImage();
-                            bitmapImage.DecodePixelWidth = (int)imagePane.Width; //match the target Image.Width, not shown
-                            await bitmapImage.SetSourceAsync(fileStream);
-                            imagePane?.Source = bitmapImage;
-                        }
-
-                        FNameProgress.Report(i.ToString() + " " + sF.Name);
-                        i++;
+                        // Set the image source to the selected bitmap 
+                        BitmapImage bitmapImage = new BitmapImage();
+                        bitmapImage.DecodePixelWidth = (int)imagePane.Width; //match the target Image.Width, not shown
+                        await bitmapImage.SetSourceAsync(fileStream);
+                        imagePane?.Source = bitmapImage;
                     }
+                    );
                 }
 
-                await Task.Delay(DelayBetweenImges);
+                FNameProgress.Report(LastImageNumThisFolder.ToString() + " " + sF.Name);
+                LastImageNumThisFolder++; // Prep for next image
             }
         }
 
@@ -167,9 +203,9 @@ namespace SimpleSlide
         /// These types
         /// .jpeg, .jpg, .png, .bmp, gif, .tiff, .ico, .svg
         /// </remarks>
-        private async void PrepForFolder(Windows.Storage.StorageFolder? storageFolder=null)
+        private async void PrepForFolder(Windows.Storage.StorageFolder? storageFolder = null)
         {
-            var folder = (Windows.Storage.StorageFolder) await Windows.Storage.AccessCache.StorageApplicationPermissions.
+            var folder = (Windows.Storage.StorageFolder)await Windows.Storage.AccessCache.StorageApplicationPermissions.
                 FutureAccessList.GetItemAsync(PickedFolderToken);
 
             // Retrieve list of any media files
@@ -179,16 +215,11 @@ namespace SimpleSlide
             var fileTypeFilterList = new List<String>() { ".jpeg", ".jpg", ".png", ".bmp", ".gif", ".tiff", ".ico", ".svg" };
             //var queryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
             var queryOptions = new QueryOptions();
-            foreach(String fileType in fileTypeFilterList)
+            foreach (String fileType in fileTypeFilterList)
                 queryOptions.FileTypeFilter.Add(fileType);
             var query = folder.CreateFileQueryWithOptions(queryOptions);
             CurrentFolderFileList = null;
             CurrentFolderFileList = await query.GetFilesAsync();   // Files in current folder
-
-            //            foreach (StorageFile file in fileList)
-            //            {
-            //                outputText.Append(file.Name + "\n");
-            //            }
 
             // Get list of all the folders in this folder. Push that list
             // onto the folder stack. Gonna do it this way instead of using true recursion.

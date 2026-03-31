@@ -18,33 +18,52 @@ namespace SimpleSlide
         private readonly String? PickedFolderToken = "PickedFolderToken";
 
         public Progress<String> FNameProgress;
+        public Progress<Boolean> ProgressBarProgress; 
         private Player Player;
 
         // Play speeds
-        private readonly int SlowSpeed = 20 * 1000;
-        private readonly int MediumSpeed = 15 * 1000;
-        private readonly int FastSpeed = 10 * 1000;
+        private readonly int SlowSpeed = 15 * 1000;
+        private readonly int MediumSpeed = 10 * 1000;
+        private readonly int FastSpeed = 3 * 1000;
 
         public MainPage()
         {
             InitializeComponent();
 
             FNameProgress = new Progress<String>();
-            Player = new(PickedFolderToken, FNameProgress)
+            ProgressBarProgress = new Progress<Boolean>();
+            Player = new(PickedFolderToken, FNameProgress, ProgressBarProgress)
             {
                 ImagePane = [null, Image1, null], // The XAML image elements
                 DelayBetweenImges = MediumSpeed
             };
             FNameProgress.ProgressChanged += FNameChanged;
+            ProgressBarProgress.ProgressChanged += ActivateProgressBar;
 
             // Start the player
             _ = Player.Play(); // Async operation, Player running on another thread.
         }
 
+        /// <summary>
+        /// Receives message to set text string in the FNameTextBlock
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="fileName"></param>
         private void FNameChanged(object? sender, string fileName)
         {
             FNameTextBlock.Text = fileName;
         }
+
+        /// <summary>
+        /// Receives message to set Visability of ProgressBar
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="activate"></param>        
+        private void ActivateProgressBar(object? sender, Boolean activate)
+        {
+            ProgressBar.Visibility = activate ? Visibility.Visible : Visibility.Collapsed;
+        }
+
         private async void SelectFolderBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
             //Message();
@@ -80,7 +99,7 @@ namespace SimpleSlide
                 // Send Play command to player
                 Player.CommandQueue.Enqueue(new PlayerCommand()
                 {
-                    Command = PlayerCommand.PlayerCommands.Play,
+                    Command = PlayerCommand.PlayerCommands.NewFolderStart,
                 });
             }
             else

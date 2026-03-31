@@ -1,0 +1,38 @@
+
+
+Timer fires
+	if (ready & Playing)
+		Show next image
+		Set Timer
+		
+NewFolderStart
+	Set proress twirley thing
+	Prep for New folder
+	await Show first image
+	Set Timer
+	Stop progress thing
+		
+Next
+	if (ready)
+		Cancel Timer
+		await Show next image
+		Set Timer
+		
+Previous
+	if (ready)
+		Cancel Timer
+		await Show preious image // How to deternine?
+		Set Timer
+		
+Change Speed
+	Set Speed
+	
+Continue
+	if (ready)
+		Set to playing
+		Send Next commad
+		
+Pause
+	if (ready)
+		Kill Timer
+		Set to Paused
