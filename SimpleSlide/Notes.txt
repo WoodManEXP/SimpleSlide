@@ -8,7 +8,6 @@ Timer fires
 NewFolderStart
 	Set proress twirley thing
 	Prep for New folder
-	await Show first image
 	Set Timer
 	Stop progress thing
 		

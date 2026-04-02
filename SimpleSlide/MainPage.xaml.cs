@@ -2,6 +2,7 @@
 using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Media.Animation;
 
 namespace SimpleSlide
 {
@@ -61,7 +62,7 @@ namespace SimpleSlide
         /// <param name="activate"></param>        
         private void ActivateProgressBar(object? sender, Boolean activate)
         {
-            ProgressBar.Visibility = activate ? Visibility.Visible : Visibility.Collapsed;
+            //ProgressBar.Visibility = activate ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private async void SelectFolderBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)

@@ -7,6 +7,7 @@ using Windows.Storage.Search;
 using Windows.Storage.Streams;
 using Windows.System.Threading;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Media.Imaging;
 
 namespace SimpleSlide
@@ -119,7 +120,7 @@ namespace SimpleSlide
                         case PlayerCommand.PlayerCommands.NewFolderStart:
                             //ProgressBarProgress.Report(true);
                             PrepForFolder();
-                           //ProgressBarProgress.Report(false);
+                            //ProgressBarProgress.Report(false);
                             CurrentPlayerState = PlayerState.Playing;
                             LastImageNumThisFolder = 0; // Start new
                             ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
@@ -175,7 +176,7 @@ namespace SimpleSlide
                 using (IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read))
                 {
                     // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
-                    // via a lambda ex[pression, to that thread.
+                    // via a lambda expression, to that thread.
                     await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
                         Windows.UI.Core.CoreDispatcherPriority.Normal,
                         async () =>

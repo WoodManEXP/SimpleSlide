@@ -13,4 +13,7 @@
     <DisableRuntimeMarshalling>true</DisableRuntimeMarshalling>
     <EnableMsixTooling>true</EnableMsixTooling>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Uwp.Animations" Version="8.2.251219" />
+  </ItemGroup>
 </Project>
