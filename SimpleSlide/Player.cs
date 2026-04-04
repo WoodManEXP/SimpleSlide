@@ -56,7 +56,6 @@ namespace SimpleSlide
         public PlayerState CurrentPlayerState { get; set; }
         public String? PickedFolderToken { get; set; }
         public IProgress<String> FNameProgress;
-        public IProgress<Boolean> ProgressBarProgress;
 
         // For passing commands from UI to Player
         public ConcurrentQueue<PlayerCommand> CommandQueue { get; private set; }
@@ -65,7 +64,8 @@ namespace SimpleSlide
         private Stack<FolderState> FoldersStack = new();
         public int DelayBetweenImges { get; set; }
         private int LastImageNumThisFolder { get; set; }
-        private Boolean Ready { get; set; }
+        public Boolean Ready { get; set; }
+        public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
 
         public Image?[] ImagePane = new Image[3];
@@ -75,11 +75,10 @@ namespace SimpleSlide
         /// </summary>
         /// <param name="fNameProgress"></param>
         /// <param name="progressBarProgress"></param>
-        public Player(String pickedFolderToken, Progress<String> fNameProgress, Progress<Boolean>progressBarProgress)
+        public Player(String pickedFolderToken, Progress<String> fNameProgress)
         {
             PickedFolderToken = pickedFolderToken;
             FNameProgress = fNameProgress;
-            ProgressBarProgress = progressBarProgress;
             CommandQueue = new();
             CurrentPlayerState = PlayerState.DoingNothing; // Doing Nothing;
             LastImageNumThisFolder = 0;
@@ -123,6 +122,7 @@ namespace SimpleSlide
                             //ProgressBarProgress.Report(false);
                             CurrentPlayerState = PlayerState.Playing;
                             LastImageNumThisFolder = 0; // Start new
+                            // Thread to play the images
                             ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
                                                     , TimeSpan.FromMilliseconds(DelayBetweenImges));
                             Ready = true;
@@ -146,14 +146,18 @@ namespace SimpleSlide
         public async void TimerElapsedHandler(ThreadPoolTimer timer)
         {
             if (Ready && CurrentPlayerState == PlayerState.Playing)
-                ShowNextImage();
+            {
+                AcceptingCommands = false;
+                await ShowNextImage();
+                AcceptingCommands = true;
+            }
 
             // Schedule to return in DelayBetweenImges milliseconds
             ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
                         , TimeSpan.FromMilliseconds(DelayBetweenImges));
         }
 
-        private async void ShowNextImage()
+        private async Task ShowNextImage()
         {
             /*
              * if (there is a next media file in CurrentFolderFileList)

@@ -1,8 +1,13 @@
 ﻿using System;
+using System.IO;
+using System.Linq;
+using Windows.Gaming.Input;
+using Windows.System;
 using Windows.UI.Popups;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media.Animation;
+using Windows.UI.Xaml.Media.Imaging;
 
 namespace SimpleSlide
 {
@@ -12,14 +17,13 @@ namespace SimpleSlide
     public sealed partial class MainPage : Page
     {
         private readonly String PauseStr = "Pause";
-        private readonly String PauseTT = "Pause slide show";
+        private readonly String PauseTT = "Pause slide show (Ctrl-P)";
         private readonly String ContiueStr = "Continue";
-        private readonly String ContinueTT = "Continue slide show";
+        private readonly String ContinueTT = "Continue slide show  (Ctrl-P)";
 
         private readonly String? PickedFolderToken = "PickedFolderToken";
 
         public Progress<String> FNameProgress;
-        public Progress<Boolean> ProgressBarProgress; 
         private Player Player;
 
         // Play speeds
@@ -27,50 +31,152 @@ namespace SimpleSlide
         private readonly int MediumSpeed = 10 * 1000;
         private readonly int FastSpeed = 3 * 1000;
 
+        // XBox controller
+        private Gamepad? Controller { get; set; }
+        private DispatcherTimer? ControllerTimer { get; set; }
+        private Boolean SelectingFolder { get; set; } = false;
+
         public MainPage()
         {
             InitializeComponent();
 
             FNameProgress = new Progress<String>();
-            ProgressBarProgress = new Progress<Boolean>();
-            Player = new(PickedFolderToken, FNameProgress, ProgressBarProgress)
+            Player = new(PickedFolderToken, FNameProgress)
             {
                 ImagePane = [null, Image1, null], // The XAML image elements
                 DelayBetweenImges = MediumSpeed
             };
             FNameProgress.ProgressChanged += FNameChanged;
-            ProgressBarProgress.ProgressChanged += ActivateProgressBar;
+
+            ControllerInit(); // Set up for XBox controller
 
             // Start the player
             _ = Player.Play(); // Async operation, Player running on another thread.
         }
 
+        #region XBoxController
+        private void ControllerInit()
+        {
+            ControllerTimer = new DispatcherTimer();
+            ControllerTimer.Tick += ControllerTick;
+
+            Gamepad.GamepadAdded += ControllerAdded;
+            Gamepad.GamepadRemoved += ControllerRemoved;
+        }
+        /// <summary>
+        /// Controller added - hide screen controlsv
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void ControllerAdded(object? sender, Gamepad e)
+        {
+            // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
+            // via a lambda expression, to that thread.
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                    Windows.UI.Core.CoreDispatcherPriority.Normal,
+                    async () =>
+                    {
+                        OnScreenControls.Visibility = Visibility.Collapsed; // Hide on-screen controls
+                        ControllerTimer?.Start(); // XBox controller attached, start ControllerTimer
+                    }
+                );
+        }
+        /// <summary>
+        /// Controller removed, show screen controls
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void ControllerRemoved(object? sender, Gamepad e)
+        {
+            // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
+            // via a lambda expression, to that thread.
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                    Windows.UI.Core.CoreDispatcherPriority.Normal,
+                    async () =>
+                    {
+                        OnScreenControls.Visibility = Visibility.Visible; // Bring the XAML controls back
+                        ControllerTimer?.Stop(); // No contoller, no need
+                    }
+                );
+        }
+        /// <summary>
+        /// Called periodically to monitor Xox controller
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        /// <remarks>
+        /// XBox controller state comes in fast, from another thread (like a button being held down)
+        /// And it comes w/out respect to state of the system.
+        /// So proessing is requests/commands looks at state of the system before 
+        /// passing through commands.
+        /// </remarks>
+        private void ControllerTick(object? sender, object e)
+        {
+            if (Gamepad.Gamepads.Count > 0)
+            {
+                Controller = Gamepad.Gamepads[0];
+
+                var reading = Controller.GetCurrentReading();
+
+                double rtValue = reading.RightTrigger;
+
+                if (reading.Buttons.HasFlag(GamepadButtons.Menu))
+                {
+                    if (!SelectingFolder)
+                        SelectFolder();
+                }
+                else if (reading.Buttons.HasFlag(GamepadButtons.A)) // Continue
+                {
+                    if (Player.Ready && Player.CurrentPlayerState != Player.PlayerState.Playing)
+                        PauseContiue(false);
+                }
+                else if (reading.Buttons.HasFlag(GamepadButtons.B)) // Pause
+                {
+                    if (Player.Ready && Player.CurrentPlayerState != Player.PlayerState.Paused)
+                        PauseContiue(true);
+                }
+
+                //pbLeftThumbstickX.Value = reading.LeftThumbstickX;
+                //pbLeftThumbstickY.Value = reading.LeftThumbstickY;
+
+                //pbRightThumbstickX.Value = reading.RightThumbstickX;
+                //pbRightThumbstickY.Value = reading.RightThumbstickY;
+
+                //pbRightThumbstickY.Value = reading.RightThumbstickY;
+
+                //pbLeftTrigger.Value = reading.LeftTrigger;
+                //pbRightTrigger.Value = reading.RightTrigger;
+
+                //https://msdn.microsoft.com/en-us/library/windows/apps/windows.gaming.input.gamepadbuttons.aspx
+                //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.A), lblA);
+                //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.B), lblB);
+
+                //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.Menu), lblMenu);
+                //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.DPadLeft), lblDPadLeft);
+                //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.DPadRight), lblDPadRight);
+                //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.DPadUp), lblDPadUp);
+                //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.DPadDown), lblDPadDown);
+            }
+        }
+        #endregion
+
         /// <summary>
         /// Receives message to set text string in the FNameTextBlock
         /// </summary>
         /// <param name="sender"></param>
-        /// <param name="fileName"></param>
-        private void FNameChanged(object? sender, string fileName)
+        /// <param name="aStr"></param>
+        private void FNameChanged(object? sender, string aStr)
         {
-            FNameTextBlock.Text = fileName;
+            StatusTextBlock.Text = aStr;
         }
-
-        /// <summary>
-        /// Receives message to set Visability of ProgressBar
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="activate"></param>        
-        private void ActivateProgressBar(object? sender, Boolean activate)
-        {
-            //ProgressBar.Visibility = activate ? Visibility.Visible : Visibility.Collapsed;
-        }
-
         private async void SelectFolderBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
+            SelectFolder();
+        }
+        private async void SelectFolder()
+        {
+            SelectingFolder = true;
             //Message();
-
-            // Disable Select folders btn
-            ((Button)sender).IsEnabled = false;
 
             // Send Stop command to player
             Player.CommandQueue.Enqueue(new PlayerCommand()
@@ -90,12 +196,14 @@ namespace SimpleSlide
                 // (including other sub-folder contents)
                 Windows.Storage.AccessCache.StorageApplicationPermissions.
                 FutureAccessList.AddOrReplace(PickedFolderToken, folder);
-                FNameTextBlock.Text = folder.Path;
+                StatusTextBlock.Text = folder.Path;
 
                 // Change to Pause
                 ContinuePauseBtn.Content = PauseStr;
                 ContinuePauseBtn.IsEnabled = true;
                 SetToolTip(ContinuePauseBtn, PauseTT);
+
+                FNameChanged(null, "Starting...");
 
                 // Send Play command to player
                 Player.CommandQueue.Enqueue(new PlayerCommand()
@@ -111,7 +219,7 @@ namespace SimpleSlide
                     Command = PlayerCommand.PlayerCommands.Continue
                 });
             }
-            ((Button)sender).IsEnabled = true;
+            SelectingFolder = false;
         }
         private void ContinuePauseBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
@@ -120,25 +228,42 @@ namespace SimpleSlide
             switch (ContinuePauseBtn.Content)
             {
                 case "Pause":
-                    ContinuePauseBtn.Content = ContiueStr;
-                    SetToolTip(ContinuePauseBtn, ContinueTT);
-
-                    // Send Pause command to player
-                    Player.CommandQueue.Enqueue(new PlayerCommand()
-                    {
-                        Command = PlayerCommand.PlayerCommands.Pause
-                    });
+                    PauseContiue(true);
                     break;
                 default: // Continue
-                    ContinuePauseBtn.Content = PauseStr;
-                    SetToolTip(ContinuePauseBtn, PauseTT);
-
-                    // Send Cotinue command to player
-                    Player.CommandQueue.Enqueue(new PlayerCommand()
-                    {
-                        Command = PlayerCommand.PlayerCommands.Continue
-                    });
+                    PauseContiue(false);
                     break;
+            }
+        }
+        /// <summary>
+        /// Send Pause or Continue command to Player
+        /// </summary>
+        /// <param name="pause"> True:pause, False:continue</param>
+        private void PauseContiue(Boolean pause)
+        {
+            if (pause)
+            {
+                ContinuePauseBtn.Content = ContiueStr;
+                SetToolTip(ContinuePauseBtn, ContinueTT);
+
+                // Send Pause command to player
+                Player.CommandQueue.Enqueue(new PlayerCommand()
+                {
+                    Command = PlayerCommand.PlayerCommands.Pause
+                });
+                StatusTextBlock.Text = "Paused...";
+            }
+            else // Continue
+            {
+                ContinuePauseBtn.Content = PauseStr;
+                SetToolTip(ContinuePauseBtn, PauseTT);
+
+                // Send Cotinue command to player
+                Player.CommandQueue.Enqueue(new PlayerCommand()
+                {
+                    Command = PlayerCommand.PlayerCommands.Continue
+                });
+                StatusTextBlock.Text = "Continuing...";
             }
         }
         private void SetToolTip(DependencyObject element, String value)
@@ -211,6 +336,29 @@ namespace SimpleSlide
                 Command = PlayerCommand.PlayerCommands.ChangeSpeed,
                 Value = FastSpeed
             });
+        }
+        /// <summary>
+        /// Keyboard events
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void KeyDownEvent(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            switch (e.Key)
+            {
+
+                case VirtualKey.P:
+                    break;
+                case VirtualKey.C:
+                    break;
+
+
+                // ???
+                default:
+                    base.OnKeyDown(e);
+                    break;
+            }
+
         }
     }
 }

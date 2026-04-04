@@ -8,16 +8,15 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
-    <Grid Background="LightGray">
+    <Grid Background="LightGray" KeyDown="KeyDownEvent">
         <Grid.RowDefinitions>
             <RowDefinition></RowDefinition>
             <RowDefinition Height="auto"></RowDefinition>
         </Grid.RowDefinitions>
-        <!-- Progress bar. Tried but not presently used.
-        <Viewbox Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center">
-            <ProgressBar x:Name="ProgressBar" Grid.Row="0" Width="200" Height="15" IsIndeterminate="True" Visibility="Collapsed"/>
-        </Viewbox>
-        -->
+        <StackPanel x:Name="PlaySpeedStackPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+            <ProgressBar x:Name="PlaySpeedBar" Grid.Row="0" Width="200" Height="15"/>
+            <TextBlock x:Name="PlaySpeedTextBlock" Grid.Row="0" Padding="5,5,5,5" HorizontalAlignment="Center"/>
+        </StackPanel>
         <Image x:Name="Image1" Grid.Row="0">
             <!--
             Animation is happening, but duraion is 0 ?
@@ -45,16 +44,26 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"></RowDefinition>
             </Grid.RowDefinitions>
-            <Button x:Name="SelectFolderBtn" Grid.Column="0" Grid.Row="0" Click="SelectFolderBtn_Click" Content="Select folder" Margin="3,3,3,3"
-                ToolTipService.ToolTip="Select folder from which to begin"/>
-            <Button x:Name="ContinuePauseBtn" Grid.Column="1"  Grid.Row="0" Content="Continue" Margin="3,3,3,3"
-                Click="ContinuePauseBtn_Click" ToolTipService.ToolTip="Continue previous slide show"/>
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="2" Grid.Row="0">
-                <RadioButton x:Name="SlowSpeed_RB" GroupName="SpeedGroup" Content=" S" Click="SlowSpeed_RB_Click" FlowDirection="RightToLeft" MinWidth="25" />
-                <RadioButton x:Name="MediumSpeed_RB" GroupName="SpeedGroup" Content=" M" Click="MediumSpeed_RB_Click" FlowDirection="RightToLeft" IsChecked="True" MinWidth="25" />
-                <RadioButton x:Name="FastSpeed_RB" GroupName="SpeedGroup" Content=" F" Click="FastSpeed_RB_Click" FlowDirection="RightToLeft" MinWidth="25" />
+            <StackPanel x:Name="OnScreenControls" Orientation="Horizontal" Visibility="Visible">
+                <Button x:Name="SelectFolderBtn" Grid.Column="0" Grid.Row="0" Click="SelectFolderBtn_Click" Content="Select folder" Margin="3,3,3,3"
+                ToolTipService.ToolTip="Select folder from which to begin (Ctrl-O)">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="O" Modifiers="Control"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
+                <Button x:Name="ContinuePauseBtn" Grid.Column="1"  Grid.Row="0" Content="Continue" Margin="3,3,3,3"
+                Click="ContinuePauseBtn_Click" ToolTipService.ToolTip="Continue previous slide show">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="P" Modifiers="Control"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="2" Grid.Row="0">
+                    <RadioButton x:Name="SlowSpeed_RB" GroupName="SpeedGroup" Content=" S" Click="SlowSpeed_RB_Click" FlowDirection="RightToLeft" MinWidth="25" />
+                    <RadioButton x:Name="MediumSpeed_RB" GroupName="SpeedGroup" Content=" M" Click="MediumSpeed_RB_Click" FlowDirection="RightToLeft" IsChecked="True" MinWidth="25" />
+                    <RadioButton x:Name="FastSpeed_RB" GroupName="SpeedGroup" Content=" F" Click="FastSpeed_RB_Click" FlowDirection="RightToLeft" MinWidth="25" />
+                </StackPanel>
             </StackPanel>
-            <TextBlock x:Name="FNameTextBlock" Grid.Column="3" Grid.Row="0" Padding="15,5,5,5" VerticalAlignment="Center" Text="FName"/>
+            <TextBlock x:Name="StatusTextBlock" Grid.Column="3" Grid.Row="0" Padding="15,5,5,5" VerticalAlignment="Center" Text="FName"/>
         </Grid>
     </Grid>
 </Page>
