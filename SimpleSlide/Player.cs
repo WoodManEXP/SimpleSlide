@@ -62,7 +62,7 @@ namespace SimpleSlide
         private IReadOnlyList<StorageFile>? CurrentFolderFileList { get; set; } // All the files in a folder
         private int NextFileNum;
         private Stack<FolderState> FoldersStack = new();
-        public int DelayBetweenImges { get; set; }
+        public int DelayBetweenImges { get; set; } // MS
         private int LastImageNumThisFolder { get; set; }
         public Boolean Ready { get; set; }
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored

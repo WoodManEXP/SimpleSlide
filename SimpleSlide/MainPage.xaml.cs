@@ -1,13 +1,9 @@
 ﻿using System;
-using System.IO;
-using System.Linq;
 using Windows.Gaming.Input;
 using Windows.System;
-using Windows.UI.Popups;
+using Windows.System.Threading;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
-using Windows.UI.Xaml.Media.Animation;
-using Windows.UI.Xaml.Media.Imaging;
 
 namespace SimpleSlide
 {
@@ -26,15 +22,22 @@ namespace SimpleSlide
         public Progress<String> FNameProgress;
         private Player Player;
 
-        // Play speeds
-        private readonly int SlowSpeed = 15 * 1000;
-        private readonly int MediumSpeed = 10 * 1000;
-        private readonly int FastSpeed = 3 * 1000;
-
         // XBox controller
         private Gamepad? Controller { get; set; }
         private DispatcherTimer? ControllerTimer { get; set; }
         private Boolean SelectingFolder { get; set; } = false;
+
+        #region PlaySpeedControl
+        private enum ChangeSpeed
+        { Faster, Slower }
+        private static readonly int[] PlaySpeeds = [2 * 1000, 5 * 1000, 10 * 1000, 20 * 1000, 30 * 1000, 60 * 1000];
+        private static readonly int MaxSpeed = PlaySpeeds.Length - 1;
+        private static int CurrSpeedIndex = 2;
+        private static int PSInterval = 250;
+        private ThreadPoolTimer? PlaySpeedBarTimer { get; set; } = null;
+        private TimeSpan PlaySpeedBarDelay = TimeSpan.FromMilliseconds(2 * 1000);
+        private DateTime LastSpeedChangeDT = DateTime.Now;
+        #endregion
 
         public MainPage()
         {
@@ -44,11 +47,15 @@ namespace SimpleSlide
             Player = new(PickedFolderToken, FNameProgress)
             {
                 ImagePane = [null, Image1, null], // The XAML image elements
-                DelayBetweenImges = MediumSpeed
+                DelayBetweenImges = PlaySpeeds[CurrSpeedIndex]
             };
             FNameProgress.ProgressChanged += FNameChanged;
 
             ControllerInit(); // Set up for XBox controller
+
+            // Speed control setup
+            PlaySpeedBar.Maximum = MaxSpeed;
+            PlaySpeedBar.Value = 0D;
 
             // Start the player
             _ = Player.Play(); // Async operation, Player running on another thread.
@@ -128,12 +135,20 @@ namespace SimpleSlide
                 else if (reading.Buttons.HasFlag(GamepadButtons.A)) // Continue
                 {
                     if (Player.Ready && Player.CurrentPlayerState != Player.PlayerState.Playing)
-                        PauseContiue(false);
+                        PauseContiue(PauseOrContinue.Continue);
                 }
                 else if (reading.Buttons.HasFlag(GamepadButtons.B)) // Pause
                 {
                     if (Player.Ready && Player.CurrentPlayerState != Player.PlayerState.Paused)
-                        PauseContiue(true);
+                        PauseContiue(PauseOrContinue.Pause);
+                }
+                else if (reading.Buttons.HasFlag(GamepadButtons.DPadUp)) // Speed up
+                {
+                    ChangePlaySpeed(ChangeSpeed.Faster);
+                }
+                else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Skow own
+                {
+                    ChangePlaySpeed(ChangeSpeed.Slower);
                 }
 
                 //pbLeftThumbstickX.Value = reading.LeftThumbstickX;
@@ -225,23 +240,28 @@ namespace SimpleSlide
         {
             var CommandQueue = Player.CommandQueue;
 
-            switch (ContinuePauseBtn.Content)
-            {
-                case "Pause":
-                    PauseContiue(true);
-                    break;
-                default: // Continue
-                    PauseContiue(false);
-                    break;
-            }
+            if (Player.Ready)
+                switch (ContinuePauseBtn.Content)
+                {
+                    case "Pause":
+                        PauseContiue(PauseOrContinue.Pause);
+                        break;
+                    default: // Continue
+                        PauseContiue(PauseOrContinue.Continue);
+                        break;
+                }
         }
+
+        private enum PauseOrContinue
+        { Pause, Continue }
+
         /// <summary>
         /// Send Pause or Continue command to Player
         /// </summary>
         /// <param name="pause"> True:pause, False:continue</param>
-        private void PauseContiue(Boolean pause)
+        private void PauseContiue(PauseOrContinue what)
         {
-            if (pause)
+            if (PauseOrContinue.Pause == what)
             {
                 ContinuePauseBtn.Content = ContiueStr;
                 SetToolTip(ContinuePauseBtn, ContinueTT);
@@ -275,83 +295,83 @@ namespace SimpleSlide
             ToolTipService.SetToolTip(element, tt);
         }
 
+        #region SpeedControl
+        private void ChangePlaySpeed(ChangeSpeed change)
+        {
+            // Limit how often these are processed
+            DateTime now = DateTime.Now;
+            TimeSpan interval = now - LastSpeedChangeDT;
+            if (interval.TotalMilliseconds < PSInterval)
+                return;
+
+            LastSpeedChangeDT = now;
+
+            // Show the PlaySpeedBar controls
+            PlaySpeedStackPanel.Visibility = Visibility.Visible;
+
+            // Stop timer, if there is one
+            if (null != PlaySpeedBarTimer)
+                PlaySpeedBarTimer.Cancel();
+
+            // (Re)Start ThreadPoolTimer
+            PlaySpeedBarTimer = ThreadPoolTimer.CreateTimer(PlaySpeedBarTimerHandler,
+                                        TimeSpan.FromMilliseconds(1000D));
+
+            if (ChangeSpeed.Slower == change)
+                CurrSpeedIndex = Math.Max(0, CurrSpeedIndex - 1);
+            else
+                CurrSpeedIndex = Math.Min(MaxSpeed, CurrSpeedIndex + 1);
+
+            PlaySpeedBar.Value = (Double)CurrSpeedIndex; // Adjust the PlaySpeedBar value
+
+            int currSpeedMS = PlaySpeeds[CurrSpeedIndex];
+            PlaySpeedTextBlock.Text = "Delay " + (currSpeedMS / 1000).ToString() + " seconds";
+
+            // Send speed change to Player
+            // Send ChangeSpeed command to player
+            Player.CommandQueue.Enqueue(new PlayerCommand()
+            {
+                Command = PlayerCommand.PlayerCommands.ChangeSpeed,
+                Value = currSpeedMS
+            });
+        }
+
         /// <summary>
-        /// A messagebox in UWP land
+        /// Called when Play Speed timer fires. Hides the control.
         /// </summary>
-        private void Message()
+        /// <param name="timer"></param>
+        public async void PlaySpeedBarTimerHandler(ThreadPoolTimer timer)
         {
-            // Create the message dialog and set its content
-            var messageDialog = new MessageDialog("Button pushed.");
-
-            // Add commands and set their callbacks; both buttons use the same callback function instead of inline event handlers
-            messageDialog.Commands.Add(new UICommand(
-                "Try again",
-                new UICommandInvokedHandler(this.CommandInvokedHandler)));
-            messageDialog.Commands.Add(new UICommand(
-                "Close",
-                new UICommandInvokedHandler(this.CommandInvokedHandler)));
-
-            // Set the command that will be invoked by default
-            messageDialog.DefaultCommandIndex = 0;
-
-            // Set the command to be invoked when escape is pressed
-            messageDialog.CancelCommandIndex = 1;
-
-            // Show the message dialog
-            messageDialog.ShowAsync();
-
+            // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
+            // via a lambda expression, to that thread.
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                    Windows.UI.Core.CoreDispatcherPriority.Normal,
+                    async () =>
+                    {
+                        // Hide the PlaySpeedBar controls
+                        PlaySpeedStackPanel.Visibility = Visibility.Collapsed;
+                    }
+                );
         }
-        private void CommandInvokedHandler(IUICommand command)
-        {
-            // Display message showing the label of the command that was invoked
-            //rootPage.NotifyUser("The '" + command.Label + "' command has been selected.",
-            //    NotifyType.StatusMessage);
-        }
+        #endregion
 
-        private void SlowSpeed_RB_Click(object sender, RoutedEventArgs e)
-        {
-            // Send ChangeSpeed command to player
-            Player.CommandQueue.Enqueue(new PlayerCommand()
-            {
-                Command = PlayerCommand.PlayerCommands.ChangeSpeed,
-                Value = SlowSpeed
-            });
-        }
-
-        private void MediumSpeed_RB_Click(object sender, RoutedEventArgs e)
-        {
-            // Send ChangeSpeed command to player
-            Player.CommandQueue.Enqueue(new PlayerCommand()
-            {
-                Command = PlayerCommand.PlayerCommands.ChangeSpeed,
-                Value = MediumSpeed
-            });
-        }
-
-        private void FastSpeed_RB_Click(object sender, RoutedEventArgs e)
-        {
-            // Send ChangeSpeed command to player
-            Player.CommandQueue.Enqueue(new PlayerCommand()
-            {
-                Command = PlayerCommand.PlayerCommands.ChangeSpeed,
-                Value = FastSpeed
-            });
-        }
         /// <summary>
         /// Keyboard events
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        /// https://learn.microsoft.com/en-us/uwp/api/windows.system.virtualkey?view=winrt-26100
         private void KeyDownEvent(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
             switch (e.Key)
             {
 
-                case VirtualKey.P:
+                case VirtualKey.Up:
+                    ChangePlaySpeed(ChangeSpeed.Faster);
                     break;
-                case VirtualKey.C:
+                case VirtualKey.Down:
+                    ChangePlaySpeed(ChangeSpeed.Slower);
                     break;
-
 
                 // ???
                 default:

@@ -13,10 +13,6 @@
             <RowDefinition></RowDefinition>
             <RowDefinition Height="auto"></RowDefinition>
         </Grid.RowDefinitions>
-        <StackPanel x:Name="PlaySpeedStackPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
-            <ProgressBar x:Name="PlaySpeedBar" Grid.Row="0" Width="200" Height="15"/>
-            <TextBlock x:Name="PlaySpeedTextBlock" Grid.Row="0" Padding="5,5,5,5" HorizontalAlignment="Center"/>
-        </StackPanel>
         <Image x:Name="Image1" Grid.Row="0">
             <!--
             Animation is happening, but duraion is 0 ?
@@ -39,31 +35,30 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"></RowDefinition>
             </Grid.RowDefinitions>
-            <StackPanel x:Name="OnScreenControls" Orientation="Horizontal" Visibility="Visible">
-                <Button x:Name="SelectFolderBtn" Grid.Column="0" Grid.Row="0" Click="SelectFolderBtn_Click" Content="Select folder" Margin="3,3,3,3"
+            <StackPanel x:Name="OnScreenControls" Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Visibility="Visible">
+                <Button x:Name="SelectFolderBtn" Click="SelectFolderBtn_Click" Content="Select folder" Margin="3,3,3,3"
                 ToolTipService.ToolTip="Select folder from which to begin (Ctrl-O)">
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Key="O" Modifiers="Control"/>
                     </Button.KeyboardAccelerators>
                 </Button>
-                <Button x:Name="ContinuePauseBtn" Grid.Column="1"  Grid.Row="0" Content="Continue" Margin="3,3,3,3"
+                <Button x:Name="ContinuePauseBtn" Content="Continue" Margin="3,3,3,3"
                 Click="ContinuePauseBtn_Click" ToolTipService.ToolTip="Continue previous slide show">
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Key="P" Modifiers="Control"/>
                     </Button.KeyboardAccelerators>
                 </Button>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="2" Grid.Row="0">
-                    <RadioButton x:Name="SlowSpeed_RB" GroupName="SpeedGroup" Content=" S" Click="SlowSpeed_RB_Click" FlowDirection="RightToLeft" MinWidth="25" />
-                    <RadioButton x:Name="MediumSpeed_RB" GroupName="SpeedGroup" Content=" M" Click="MediumSpeed_RB_Click" FlowDirection="RightToLeft" IsChecked="True" MinWidth="25" />
-                    <RadioButton x:Name="FastSpeed_RB" GroupName="SpeedGroup" Content=" F" Click="FastSpeed_RB_Click" FlowDirection="RightToLeft" MinWidth="25" />
-                </StackPanel>
             </StackPanel>
-            <TextBlock x:Name="StatusTextBlock" Grid.Column="3" Grid.Row="0" Padding="15,5,5,5" VerticalAlignment="Center" Text="FName"/>
+            <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Grid.Row="0" Padding="20,5,5,5" VerticalAlignment="Center" Text="FName"/>
+            <StackPanel x:Name="PlaySpeedStackPanel" Grid.Column="2" Grid.Row="0" Margin="15,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
+                <ProgressBar x:Name="PlaySpeedBar" Width="200" Height="15" Minimum="-1"/>
+                <TextBlock x:Name="PlaySpeedTextBlock" Padding="0,0,0,0" HorizontalAlignment="Center"/>
+            </StackPanel>
+
         </Grid>
     </Grid>
 </Page>
