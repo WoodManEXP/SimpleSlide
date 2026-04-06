@@ -33,9 +33,9 @@ namespace SimpleSlide
         private static readonly int[] PlaySpeeds = [2 * 1000, 5 * 1000, 10 * 1000, 20 * 1000, 30 * 1000, 60 * 1000];
         private static readonly int MaxSpeed = PlaySpeeds.Length - 1;
         private static int CurrSpeedIndex = 2;
-        private static int PSInterval = 250;
+        private static readonly int PSInterval = 250;
         private ThreadPoolTimer? PlaySpeedBarTimer { get; set; } = null;
-        private TimeSpan PlaySpeedBarDelay = TimeSpan.FromMilliseconds(2 * 1000);
+        private readonly TimeSpan PlaySpeedBarDelay = TimeSpan.FromMilliseconds(2 * 1000);
         private DateTime LastSpeedChangeDT = DateTime.Now;
         #endregion
 
@@ -58,7 +58,7 @@ namespace SimpleSlide
             PlaySpeedBar.Value = 0D;
 
             // Start the player
-            _ = Player.Play(); // Async operation, Player running on another thread.
+            _ = Player.Play(); // Player is running on another thread.
         }
 
         #region XBoxController
@@ -143,13 +143,10 @@ namespace SimpleSlide
                         PauseContiue(PauseOrContinue.Pause);
                 }
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadUp)) // Speed up
-                {
                     ChangePlaySpeed(ChangeSpeed.Faster);
-                }
-                else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Skow own
-                {
+                else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Slow down
                     ChangePlaySpeed(ChangeSpeed.Slower);
-                }
+
 
                 //pbLeftThumbstickX.Value = reading.LeftThumbstickX;
                 //pbLeftThumbstickY.Value = reading.LeftThumbstickY;
@@ -365,7 +362,6 @@ namespace SimpleSlide
         {
             switch (e.Key)
             {
-
                 case VirtualKey.Up:
                     ChangePlaySpeed(ChangeSpeed.Faster);
                     break;
@@ -378,7 +374,6 @@ namespace SimpleSlide
                     base.OnKeyDown(e);
                     break;
             }
-
         }
     }
 }
