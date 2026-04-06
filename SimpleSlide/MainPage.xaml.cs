@@ -39,6 +39,10 @@ namespace SimpleSlide
         private DateTime LastSpeedChangeDT = DateTime.Now;
         #endregion
 
+        private enum NextOrPrevious
+        { Next, Previous }
+        private DateTime LastNextOrPreviousChangeDT = DateTime.Now;
+
         public MainPage()
         {
             InitializeComponent();
@@ -146,7 +150,10 @@ namespace SimpleSlide
                     ChangePlaySpeed(ChangeSpeed.Faster);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Slow down
                     ChangePlaySpeed(ChangeSpeed.Slower);
-
+                else if (reading.Buttons.HasFlag(GamepadButtons.DPadRight)) // Next image
+                    ControllerNextOrPrevious(NextOrPrevious.Next);
+                else if (reading.Buttons.HasFlag(GamepadButtons.DPadLeft)) // Previous image
+                    ControllerNextOrPrevious(NextOrPrevious.Previous);
 
                 //pbLeftThumbstickX.Value = reading.LeftThumbstickX;
                 //pbLeftThumbstickY.Value = reading.LeftThumbstickY;
@@ -170,7 +177,7 @@ namespace SimpleSlide
                 //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.DPadDown), lblDPadDown);
             }
         }
-        #endregion
+        #endregion XBoxController
 
         /// <summary>
         /// Receives message to set text string in the FNameTextBlock
@@ -292,6 +299,35 @@ namespace SimpleSlide
             ToolTipService.SetToolTip(element, tt);
         }
 
+        private void ControllerNextOrPrevious(NextOrPrevious nextOrPrevious)
+        {
+            // Limit how often these are processed
+            DateTime now = DateTime.Now;
+            TimeSpan interval = now - LastNextOrPreviousChangeDT;
+            if (interval.TotalMilliseconds < PSInterval)
+                return;
+
+            LastNextOrPreviousChangeDT = now;
+
+            switch (nextOrPrevious)
+            {
+                case NextOrPrevious.Previous:
+                    // Send Previous image command to Player
+                    Player.CommandQueue.Enqueue(new PlayerCommand()
+                    {
+                        Command = PlayerCommand.PlayerCommands.Previous
+                    });
+                    break;
+                default:
+                    // Send Next image command to Player
+                    Player.CommandQueue.Enqueue(new PlayerCommand()
+                    {
+                        Command = PlayerCommand.PlayerCommands.Next
+                    });
+                    break;
+            }
+        }
+
         #region SpeedControl
         private void ChangePlaySpeed(ChangeSpeed change)
         {
@@ -324,7 +360,6 @@ namespace SimpleSlide
             int currSpeedMS = PlaySpeeds[CurrSpeedIndex];
             PlaySpeedTextBlock.Text = "Delay " + (currSpeedMS / 1000).ToString() + " seconds";
 
-            // Send speed change to Player
             // Send ChangeSpeed command to player
             Player.CommandQueue.Enqueue(new PlayerCommand()
             {
@@ -367,6 +402,20 @@ namespace SimpleSlide
                     break;
                 case VirtualKey.Down:
                     ChangePlaySpeed(ChangeSpeed.Slower);
+                    break;
+                case VirtualKey.Right:
+                    // Send Next image command to Player
+                    Player.CommandQueue.Enqueue(new PlayerCommand()
+                    {
+                        Command = PlayerCommand.PlayerCommands.Next
+                    });
+                    break;
+                case VirtualKey.Left:
+                    // Send Previous image command to Player
+                    Player.CommandQueue.Enqueue(new PlayerCommand()
+                    {
+                        Command = PlayerCommand.PlayerCommands.Previous
+                    });
                     break;
 
                 // ???
