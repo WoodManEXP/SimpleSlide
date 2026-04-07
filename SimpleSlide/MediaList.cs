@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Search;
@@ -12,9 +11,15 @@ namespace SimpleSlide
     /// </summary>
     internal class FolderState
     {
-        public int CurrentFolderNum { get; set; } = 0;
-        public IReadOnlyList<StorageFolder>? FolderList { get; set; }
-        public FolderState() { }
+        public int LastImageNum { get; set; } = -1;
+        public int LastFolderNum { get; set; } = 0;
+        public IReadOnlyList<StorageFile> FileList { get; set; }        // Files in the folder
+        public IReadOnlyList<StorageFolder> FolderList { get; set; }    // Folders in te folder
+        public FolderState(IReadOnlyList<StorageFile> fileList, IReadOnlyList<StorageFolder> folderList)
+        {
+            FileList = fileList;
+            FolderList = folderList;
+        }
     }
 
     /// <summary>
@@ -22,50 +27,57 @@ namespace SimpleSlide
     /// </summary>
     internal class MediaList
     {
-
         public String? PickedFolderToken { get; set; }
-
         private Stack<FolderState> FoldersStack = new();
-        private IReadOnlyList<StorageFile>? CurrentFolderFileList { get; set; } = null; // All the files in a folder
-        private int NextFileNum;
+        private QueryOptions QueryOptions { get; set; }
 
-        public MediaList() { }
+        public MediaList()
+        {
 
-        private int LastImageNumThisFolder { get; set; } = -1;
-
+            // There is a bug in QueryOptios class that causes a cast exception when a List is passed
+            // for the fie type filter list. There is mention of it in various forums. Only work-around
+            // found is what is impemented here...
+            var fileTypeFilterList = new List<String>() { ".jpeg", ".jpg", ".png", ".bmp", ".gif", ".tiff", ".ico", ".svg" };
+            //var queryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
+            QueryOptions = new QueryOptions();
+            foreach (String fileType in fileTypeFilterList)
+                QueryOptions.FileTypeFilter.Add(fileType);
+        }
         /// <summary>
         /// Get next media from list
         /// </summary>
         /// <returns></returns>
         public StorageFile? GetNextMedia()
         {
-            if (null == CurrentFolderFileList)
-                return null;
+            FolderState fS = FoldersStack.Peek();
+
+            if (null == fS)
+                return null; // Nothing in the FolderStack
 
             // List is ready/available
-            LastImageNumThisFolder++;
+            fS.LastImageNum++;
 
-            if (LastImageNumThisFolder >= CurrentFolderFileList.Count) // Round and round
-                LastImageNumThisFolder = 0;
+            if (fS.LastImageNum >= fS.FileList.Count) // Round and round
+                fS.LastImageNum = 0;
 
-            return CurrentFolderFileList[LastImageNumThisFolder];
+            return fS.FileList[fS.LastImageNum];
         }
-
         public StorageFile? GetPreviousMedia()
         {
-            if (null == CurrentFolderFileList)
-                return null;
+            FolderState fS = FoldersStack.Peek();
+
+            if (null == fS)
+                return null; // Nothing in the FolderStack
 
             // List is ready/available
 
-            if (--LastImageNumThisFolder < 0) // Round and round
-                LastImageNumThisFolder = 0;
-            return CurrentFolderFileList[LastImageNumThisFolder];
+            if (--fS.LastImageNum < 0) // Round and round
+                fS.LastImageNum = 0;
+            return fS.FileList[fS.LastImageNum];
         }
 
-
         /// <summary>
-        /// Prepare to begin playig from the taget directory named in commandString
+        /// Prepare to begin playing from a folder
         /// </summary>
         /// <param name="storageFolder">Pass in a StorageFolder is available. Otherwie will get it
         /// from the PickedFolderToken of the FutureAccessList.</param>
@@ -75,35 +87,25 @@ namespace SimpleSlide
         /// </remarks>
         public async Task PrepForFolder(Windows.Storage.StorageFolder? storageFolder = null)
         {
-            var folder = (Windows.Storage.StorageFolder)await Windows.Storage.AccessCache.StorageApplicationPermissions.
-                FutureAccessList.GetItemAsync(PickedFolderToken);
+            if (null == storageFolder)
+                storageFolder = (Windows.Storage.StorageFolder)await Windows.Storage.AccessCache.StorageApplicationPermissions.
+                    FutureAccessList.GetItemAsync(PickedFolderToken);
+            else
+            {
+            
+            }
+
+            var query = storageFolder.CreateFileQueryWithOptions(QueryOptions);
 
             // Retrieve list of any media files
-            // There is a bug in QueryOptios class that causes a cast exception when a List is passed
-            // for the fie type filter list. There is mention of it in various forums. Only work-around
-            // found is what is impemented here...
-            var fileTypeFilterList = new List<String>() { ".jpeg", ".jpg", ".png", ".bmp", ".gif", ".tiff", ".ico", ".svg" };
-            //var queryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
-            var queryOptions = new QueryOptions();
-            foreach (String fileType in fileTypeFilterList)
-                queryOptions.FileTypeFilter.Add(fileType);
-            var query = folder.CreateFileQueryWithOptions(queryOptions);
-            CurrentFolderFileList = null;
-            CurrentFolderFileList = await query.GetFilesAsync();   // Files in current folder
+            IReadOnlyList<StorageFile>? fileList = await query.GetFilesAsync();
 
-            // Get list of all the folders in this folder. Push that list
-            // onto the folder stack. Gonna do it this way instead of using true recursion.
-            IReadOnlyList<StorageFolder>? currentFolderFolderList;      // All the folders in a folder
-            currentFolderFolderList = await folder.GetFoldersAsync();   // Folders in current folder
+            // Get list of all the folders in this folder.
+            IReadOnlyList<StorageFolder>? folderList = await storageFolder.GetFoldersAsync();
 
             // Make a FolderState to push onto FoldersStack
-            FolderState folderState = new()
-            {
-                FolderList = currentFolderFolderList
-            };
+            FolderState folderState = new(fileList, folderList);
             FoldersStack.Push(folderState);
-
-            LastImageNumThisFolder = 0;
         }
     }
 }
