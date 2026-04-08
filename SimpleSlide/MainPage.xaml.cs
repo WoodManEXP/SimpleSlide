@@ -405,17 +405,11 @@ namespace SimpleSlide
                     break;
                 case VirtualKey.Right:
                     // Send Next image command to Player
-                    Player.CommandQueue.Enqueue(new PlayerCommand()
-                    {
-                        Command = PlayerCommand.PlayerCommands.Next
-                    });
+                    ControllerNextOrPrevious(NextOrPrevious.Next);
                     break;
                 case VirtualKey.Left:
                     // Send Previous image command to Player
-                    Player.CommandQueue.Enqueue(new PlayerCommand()
-                    {
-                        Command = PlayerCommand.PlayerCommands.Previous
-                    });
+                    ControllerNextOrPrevious(NextOrPrevious.Previous);
                     break;
 
                 // ???

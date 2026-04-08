@@ -11,14 +11,17 @@ namespace SimpleSlide
     /// </summary>
     internal class FolderState
     {
-        public int LastImageNum { get; set; } = -1;
-        public int LastFolderNum { get; set; } = 0;
+        public int LastFileNum { get; set; }
+        public int LastFolderNum { get; set; }
         public IReadOnlyList<StorageFile> FileList { get; set; }        // Files in the folder
         public IReadOnlyList<StorageFolder> FolderList { get; set; }    // Folders in te folder
-        public FolderState(IReadOnlyList<StorageFile> fileList, IReadOnlyList<StorageFolder> folderList)
+        public StorageFolder StorageFolder { get; set; }                // This folder
+        public FolderState(StorageFolder storageFolder, IReadOnlyList<StorageFile> fileList, IReadOnlyList<StorageFolder> folderList)
         {
+            StorageFolder = storageFolder;
             FileList = fileList;
             FolderList = folderList;
+            LastFileNum = LastFolderNum = -1;
         }
     }
 
@@ -43,37 +46,124 @@ namespace SimpleSlide
             foreach (String fileType in fileTypeFilterList)
                 QueryOptions.FileTypeFilter.Add(fileType);
         }
+
+        public String CurrentFolderName()
+        {
+            if (0 == FoldersStack.Count)
+                return new("");
+
+            FolderState? fS = FoldersStack.Peek();
+            StorageFolder sF = fS.StorageFolder;
+
+            return (1+fS.LastFileNum).ToString() + ":" + fS.FileList.Count.ToString() + " " + sF.Name + "\\";
+        }
+
         /// <summary>
         /// Get next media from list
         /// </summary>
         /// <returns></returns>
-        public StorageFile? GetNextMedia()
+        public async Task<StorageFile?> GetNextMedia()
         {
-            FolderState fS = FoldersStack.Peek();
-
-            if (null == fS)
-                return null; // Nothing in the FolderStack
-
-            // List is ready/available
-            fS.LastImageNum++;
-
-            if (fS.LastImageNum >= fS.FileList.Count) // Round and round
-                fS.LastImageNum = 0;
-
-            return fS.FileList[fS.LastImageNum];
+            StorageFile? sF = await StackGetNext();
+            return sF;
         }
-        public StorageFile? GetPreviousMedia()
+
+        /// <summary>
+        /// Get previous media from list
+        /// </summary>
+        /// <returns></returns>
+        public async Task<StorageFile?> GetPreviousMedia()
         {
-            FolderState fS = FoldersStack.Peek();
+            StorageFile? sF = await StackGetPrevious();
+            return sF;
+        }
 
-            if (null == fS)
-                return null; // Nothing in the FolderStack
+        /// <summary>
+        /// Work the Stack/folde-tree to get next media
+        /// </summary>
+        /// <returns></returns>
+        /// <remarks>
+        /// This begs to be impemented via recursion, but does not fit well with
+        /// other needs. So a loop and Stack are used.
+        /// </remarks>
+        private async Task<StorageFile?> StackGetNext()
+        {
+            if (0 == FoldersStack.Count) // JIC
+                return null;
 
-            // List is ready/available
+            FolderState? fS = FoldersStack.Peek();
 
-            if (--fS.LastImageNum < 0) // Round and round
-                fS.LastImageNum = 0;
-            return fS.FileList[fS.LastImageNum];
+            while (true)
+            {
+                // Nothing in the FolderStack. This case can also happen if the initial
+                // folder has no media files and no subfolders.
+                if (null == fS)
+                    return null;
+
+                // Have all files in folder hierarchy been processed?
+                if (FoldersStack.Count == 1)
+                    if (1+fS.LastFileNum >= fS.FileList.Count || 0 == fS.FileList.Count)
+                        if (1+fS.LastFolderNum >= fS.FolderList.Count | 0 == fS.FolderList.Count)
+                            fS.LastFileNum = fS.LastFolderNum = -1; // Go back to beginning
+
+                // Any next files remaining in this folder?
+                if (1 + fS.LastFileNum < fS.FileList.Count)
+                    return fS.FileList[++fS.LastFileNum];
+
+                // No more next files this folder, start working the folder list
+                if (1 + fS.LastFolderNum < fS.FolderList.Count)
+                {
+                    // Onto next folder
+                    await PrepForFolder(fS.FolderList[++fS.LastFolderNum]);
+                    fS = FoldersStack.Peek();
+                }
+                else
+                {
+                    // No more folders, pop the stack
+                    FoldersStack.Pop();
+                    fS = (FoldersStack.Count > 0) ? FoldersStack.Peek() : null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Work the Stack to get previous media
+        /// </summary>
+        /// <returns></returns>
+        private async Task<StorageFile?> StackGetPrevious()
+        {
+            if (0 == FoldersStack.Count)  // JIC
+                return null;
+
+            FolderState? fS = FoldersStack.Peek();
+
+            // Boundary case: at the beginning?
+            if (1 == FoldersStack.Count && fS.LastFileNum <= 0)
+                return null;
+
+            while (true)
+            {
+                if (null == fS)
+                    return null; // Nothing in the FolderStack
+
+                // Any previous files remaining in this folder?
+                if (fS.FileList.Count != 0 && fS.LastFileNum - 1 >= 0)
+                    return fS.FileList[--fS.LastFileNum];
+
+                // No more previous files this folder, start working the folder list
+                if (fS.LastFolderNum - 1 > fS.FolderList.Count)
+                {
+                    // Onto next folder
+                    await PrepForFolder(fS.FolderList[fS.LastFolderNum]);
+                    fS = FoldersStack.Peek();
+                }
+                else
+                {
+                    // No more folders, pop the stack
+                    FoldersStack.Pop();
+                    fS = (FoldersStack.Count > 0) ? FoldersStack.Peek() : null;
+                }
+            }
         }
 
         /// <summary>
@@ -90,10 +180,6 @@ namespace SimpleSlide
             if (null == storageFolder)
                 storageFolder = (Windows.Storage.StorageFolder)await Windows.Storage.AccessCache.StorageApplicationPermissions.
                     FutureAccessList.GetItemAsync(PickedFolderToken);
-            else
-            {
-            
-            }
 
             var query = storageFolder.CreateFileQueryWithOptions(QueryOptions);
 
@@ -104,7 +190,7 @@ namespace SimpleSlide
             IReadOnlyList<StorageFolder>? folderList = await storageFolder.GetFoldersAsync();
 
             // Make a FolderState to push onto FoldersStack
-            FolderState folderState = new(fileList, folderList);
+            FolderState folderState = new(storageFolder, fileList, folderList);
             FoldersStack.Push(folderState);
         }
     }

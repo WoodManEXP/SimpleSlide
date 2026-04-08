@@ -42,7 +42,7 @@ namespace SimpleSlide
         }
         public PlayerState CurrentPlayerState { get; set; }
 
-        private MediaList? MediaList;
+        private MediaList MediaList { get; set; }
         public String? PickedFolderToken { get; set; }
         public IProgress<String> FNameProgress;
 
@@ -52,7 +52,7 @@ namespace SimpleSlide
         public Boolean Ready { get; set; }
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
-        public Image?[] ImagePane = new Image[3];
+        public Image[] ImagePane = new Image[3];
         private Boolean PlayPrevious { get; set; } = false;
 
         /// <summary>
@@ -167,12 +167,12 @@ namespace SimpleSlide
         }
         private async Task ShowNextImage()
         {
-            StorageFile? sF = MediaList?.GetNextMedia();
+            StorageFile? sF = await MediaList.GetNextMedia();
             await ShowImage(sF);
         }
         private async Task ShowPrevImage()
         {
-            StorageFile? sF = MediaList?.GetPreviousMedia();
+            StorageFile? sF = await MediaList.GetPreviousMedia();
             await ShowImage(sF);
         }
         private async Task ShowImage(StorageFile? sF)
@@ -180,7 +180,7 @@ namespace SimpleSlide
             if (null == sF)
                 return;
 
-            Image? imagePane = ImagePane[1];
+            Image imagePane = ImagePane[1];
 
             using (IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read))
             {
@@ -197,7 +197,7 @@ namespace SimpleSlide
                     imagePane?.Source = bitmapImage;
                 }
                 );
-                FNameProgress.Report(sF.Name);
+                FNameProgress.Report(MediaList.CurrentFolderName() + sF.Name);
             }
         }
     }
