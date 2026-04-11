@@ -8,7 +8,7 @@
   IgnorableNamespaces="uap mp rescap">
 
 	<Identity
-	  Name="48c16aaf-86bd-40a8-90ce-92782eac061d"
+	  Name="WoodManEXP.SimpleSlide"
 	  Publisher="CN=WoodManEXP"
 	  Version="1.0.0.0" />
 

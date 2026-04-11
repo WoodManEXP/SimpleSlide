@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using Windows.Gaming.Input;
 using Windows.System;
 using Windows.System.Threading;
@@ -38,10 +39,12 @@ namespace SimpleSlide
         private readonly TimeSpan PlaySpeedBarDelay = TimeSpan.FromMilliseconds(2 * 1000);
         private DateTime LastSpeedChangeDT = DateTime.Now;
         #endregion
-
         private enum NextOrPrevious
         { Next, Previous }
-        private DateTime LastNextOrPreviousChangeDT = DateTime.Now;
+        private DateTime LastNextOrPreviousDT = DateTime.Now;
+        private enum PauseOrContinue
+        { Pause, Continue }
+        private DateTime LastPauseOrContinueDT = DateTime.Now;
 
         public MainPage()
         {
@@ -116,10 +119,7 @@ namespace SimpleSlide
         /// <param name="sender"></param>
         /// <param name="e"></param>
         /// <remarks>
-        /// XBox controller state comes in fast, from another thread (like a button being held down)
-        /// And it comes w/out respect to state of the system.
-        /// So proessing is requests/commands looks at state of the system before 
-        /// passing through commands.
+        /// XBox controller state comes in fast, from another thread (eg. a button being held down)
         /// </remarks>
         private void ControllerTick(object? sender, object e)
         {
@@ -137,15 +137,9 @@ namespace SimpleSlide
                         SelectFolder();
                 }
                 else if (reading.Buttons.HasFlag(GamepadButtons.A)) // Continue
-                {
-                    if (Player.Ready && Player.CurrentPlayerState != Player.PlayerState.Playing)
-                        PauseContiue(PauseOrContinue.Continue);
-                }
+                    PauseOrContiue(PauseOrContinue.Continue);
                 else if (reading.Buttons.HasFlag(GamepadButtons.B)) // Pause
-                {
-                    if (Player.Ready && Player.CurrentPlayerState != Player.PlayerState.Paused)
-                        PauseContiue(PauseOrContinue.Pause);
-                }
+                    PauseOrContiue(PauseOrContinue.Pause);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadUp)) // Speed up
                     ChangePlaySpeed(ChangeSpeed.Faster);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Slow down
@@ -244,27 +238,34 @@ namespace SimpleSlide
         {
             var CommandQueue = Player.CommandQueue;
 
-            if (Player.Ready)
+            if (Player.MediaListLoaded)
                 switch (ContinuePauseBtn.Content)
                 {
                     case "Pause":
-                        PauseContiue(PauseOrContinue.Pause);
+                        PauseOrContiue(PauseOrContinue.Pause);
                         break;
                     default: // Continue
-                        PauseContiue(PauseOrContinue.Continue);
+                        PauseOrContiue(PauseOrContinue.Continue);
                         break;
                 }
         }
-
-        private enum PauseOrContinue
-        { Pause, Continue }
 
         /// <summary>
         /// Send Pause or Continue command to Player
         /// </summary>
         /// <param name="pause"> True:pause, False:continue</param>
-        private void PauseContiue(PauseOrContinue what)
+        private void PauseOrContiue(PauseOrContinue what)
         {
+            // Limit how often these are processed
+            DateTime now = DateTime.Now;
+            TimeSpan interval = now - LastPauseOrContinueDT;
+            if (interval.TotalMilliseconds < PSInterval)
+                return;
+
+            LastPauseOrContinueDT = now;
+
+//   Debug.WriteLine("PauseOrContiue " + what.ToString());
+
             if (PauseOrContinue.Pause == what)
             {
                 ContinuePauseBtn.Content = ContiueStr;
@@ -303,11 +304,11 @@ namespace SimpleSlide
         {
             // Limit how often these are processed
             DateTime now = DateTime.Now;
-            TimeSpan interval = now - LastNextOrPreviousChangeDT;
+            TimeSpan interval = now - LastNextOrPreviousDT;
             if (interval.TotalMilliseconds < PSInterval)
                 return;
 
-            LastNextOrPreviousChangeDT = now;
+            LastNextOrPreviousDT = now;
 
             switch (nextOrPrevious)
             {
