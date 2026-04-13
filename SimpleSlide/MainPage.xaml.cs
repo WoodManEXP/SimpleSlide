@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using Windows.Gaming.Input;
+using Windows.Storage;
 using Windows.System;
 using Windows.System.Threading;
 using Windows.UI.Xaml;
@@ -8,6 +9,12 @@ using Windows.UI.Xaml.Controls;
 
 namespace SimpleSlide
 {
+
+    public static class AppDataKeys
+    {
+        public const string CurrSpeedIndex = "001";
+    }
+
     /// <summary>
     /// An empty page that can be used on its own or navigated to within a <see cref="Frame">.
     /// </summary>
@@ -46,11 +53,21 @@ namespace SimpleSlide
         { Pause, Continue }
         private DateTime LastPauseOrContinueDT = DateTime.Now;
 
+        // For saving app settings
+        private ApplicationDataContainer ApplicationDataContainer = Windows.Storage.ApplicationData.Current.LocalSettings;
+
         public MainPage()
         {
             InitializeComponent();
 
             FNameProgress = new Progress<String>();
+
+            // If a DelayBetweenImges setting was saved, go with that.
+            int oInt;
+            if (ApplicationDataContainer.Values.TryGetValue(AppDataKeys.CurrSpeedIndex, out Object? oValue))
+                if (int.TryParse(oValue as String, out oInt))
+                    CurrSpeedIndex = oInt;
+
             Player = new(PickedFolderTokenName, FNameProgress)
             {
                 ImagePane = [null, Image1, null], // The XAML image elements
@@ -368,6 +385,9 @@ namespace SimpleSlide
                 Command = PlayerCommand.PlayerCommands.ChangeSpeed,
                 Value = currSpeedMS
             });
+
+            // Save selected speed to ApplicationDataContainer
+            ApplicationDataContainer.Values[AppDataKeys.CurrSpeedIndex] = CurrSpeedIndex.ToString();
         }
 
         /// <summary>

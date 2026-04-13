@@ -56,7 +56,7 @@ namespace SimpleSlide
         ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
         public Image[] ImagePane = new Image[3];
         private Boolean PlayPrevious { get; set; } = false;
-
+ 
         /// <summary>
         /// Contstructor
         /// </summary>
