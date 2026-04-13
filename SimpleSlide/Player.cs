@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Streams;
@@ -70,7 +71,6 @@ namespace SimpleSlide
             };
 
             PickedFolderToken = pickedFolderToken;
-
             FNameProgress = fNameProgress;
             CommandQueue = new();
             CurrentPlayerState = PlayerState.DoingNothing; // Doing Nothing;
@@ -82,20 +82,28 @@ namespace SimpleSlide
         /// </summary>
         /// <returns></returns>
         /// <remarks>
-        /// Log running background task
-        /// Responds to commands comin i from CommandQueue.
+        /// Long running background task
+        /// Responds to commands coming in from CommandQueue.
         /// Plays each media file in a folder then begis to descend into the subfolders.
         /// Recursive algorithm, implemeted via Stack class.
         /// Images are played on yet another thread referenced by ThreadPoolTimer.
         /// </remarks>
+        [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.CtorAsyc()")]
+        [RequiresDynamicCode("Calls SimpleSlide.MediaList.CtorAsyc()")]
         public async Task Play()
         {
-            PlayerCommand? playerCommand;
+            // Check if there is any persistant state available. If so, start the player -> this
+            // has the effect of automatically playing starting from where it left off in previous run.
+            if (await MediaList.DeserializeState())
+            {
+                MediaListLoaded = true;
+                ContinuePlaying();
+            }
 
             while (true)
             {
                 // Anything on the command queue?
-                if (CommandQueue.TryDequeue(out playerCommand))
+                if (CommandQueue.TryDequeue(out PlayerCommand? playerCommand))
                 {
                     switch (playerCommand.Command)
                     {
@@ -107,8 +115,7 @@ namespace SimpleSlide
                             CurrentPlayerState = PlayerState.Paused;
                             break;
                         case PlayerCommand.PlayerCommands.Continue:
-                            CurrentPlayerState = PlayerState.Playing;
-                            TimerElapsedHandler(null); // Fire the timer delegate
+                            ContinuePlaying();
                             break;
                         case PlayerCommand.PlayerCommands.NewFolderStart:
                             //ProgressBarProgress.Report(true);
@@ -150,6 +157,12 @@ namespace SimpleSlide
             }
         }
 
+        private void ContinuePlaying()
+        {
+            CurrentPlayerState = PlayerState.Playing;
+            TimerElapsedHandler(null); // Fire the timer delegate
+        }
+
         /// <summary>
         /// Respod to timer event and play next image
         /// </summary>
@@ -173,7 +186,7 @@ namespace SimpleSlide
                 ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
                             , TimeSpan.FromMilliseconds(DelayBetweenImges));
 
- //Debug.WriteLine("DelayBetweenImges " + DelayBetweenImges.ToString());
+            //Debug.WriteLine("DelayBetweenImges " + DelayBetweenImges.ToString());
         }
         private async Task ShowNextImage()
         {

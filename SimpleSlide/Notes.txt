@@ -1,4 +1,5 @@
 
+- Remember play speed in serialization
 
 Timer fires
 	if (ready & Playing)

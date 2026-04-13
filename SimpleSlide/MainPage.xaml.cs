@@ -18,7 +18,7 @@ namespace SimpleSlide
         private readonly String ContiueStr = "Continue";
         private readonly String ContinueTT = "Continue slide show  (Ctrl-P)";
 
-        private readonly String? PickedFolderToken = "PickedFolderToken";
+        private readonly String? PickedFolderTokenName = "PickedFolderToken";
 
         public Progress<String> FNameProgress;
         private Player Player;
@@ -51,11 +51,12 @@ namespace SimpleSlide
             InitializeComponent();
 
             FNameProgress = new Progress<String>();
-            Player = new(PickedFolderToken, FNameProgress)
+            Player = new(PickedFolderTokenName, FNameProgress)
             {
                 ImagePane = [null, Image1, null], // The XAML image elements
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex]
             };
+
             FNameProgress.ProgressChanged += FNameChanged;
 
             ControllerInit(); // Set up for XBox controller
@@ -208,7 +209,7 @@ namespace SimpleSlide
                 // Application now has read/write access to all contents in the picked folder
                 // (including other sub-folder contents)
                 Windows.Storage.AccessCache.StorageApplicationPermissions.
-                FutureAccessList.AddOrReplace(PickedFolderToken, folder);
+                FutureAccessList.AddOrReplace(PickedFolderTokenName, folder);
                 StatusTextBlock.Text = folder.Path;
 
                 // Change to Pause
