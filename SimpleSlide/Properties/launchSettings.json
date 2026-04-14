@@ -1,7 +1,8 @@
 {
   "profiles": {
     "SimpleSlide": {
-      "commandName": "MsixPackage"
+      "commandName": "MsixPackage",
+      "remoteDebugEnabled": false
     }
   }
 }

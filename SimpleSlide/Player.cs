@@ -7,6 +7,7 @@ using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.System.Threading;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Media.Imaging;
 
 namespace SimpleSlide
@@ -54,7 +55,8 @@ namespace SimpleSlide
         public Boolean MediaListLoaded { get; set; }
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
-        public Image[] ImagePane = new Image[3];
+        public Image?[] ImagePane = new Image[3];
+        public Storyboard?[] ImageStoryBoard = new Storyboard[3];
         private Boolean PlayPrevious { get; set; } = false;
  
         /// <summary>
@@ -203,7 +205,8 @@ namespace SimpleSlide
             if (null == sF)
                 return;
 
-            Image imagePane = ImagePane[1];
+            Image? imagePane = ImagePane[1];
+            Storyboard? imageStoryBoard = ImageStoryBoard[1];
 
             using (IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read))
             {
@@ -213,11 +216,24 @@ namespace SimpleSlide
                     Windows.UI.Core.CoreDispatcherPriority.Normal,
                     async () =>
                 {
+                    imageStoryBoard?.Stop();
+                    imagePane?.Opacity = 0D;
+
                     // Set the image source to the selected bitmap 
-                    BitmapImage bitmapImage = new BitmapImage();
+                    var bitmapImage = new BitmapImage()
+                    {
+                        CreateOptions = BitmapCreateOptions.IgnoreImageCache
+                    };
+                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
+
                     bitmapImage.DecodePixelWidth = (int)imagePane.Width; //match the target Image.Width, not shown
-                    await bitmapImage.SetSourceAsync(fileStream);
+                    bitmapImage.ImageOpened += (s, e) =>
+                    {
+                        imagePane?.Opacity = 0D;
+                        imageStoryBoard?.Begin();
+                    };
                     imagePane?.Source = bitmapImage;
+                    await bitmapImage.SetSourceAsync(fileStream);
                 }
                 );
                 FNameProgress.Report(MediaList.CurrentFolderName() + sF.Name);

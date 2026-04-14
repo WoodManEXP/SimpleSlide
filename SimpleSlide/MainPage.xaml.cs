@@ -9,7 +9,6 @@ using Windows.UI.Xaml.Controls;
 
 namespace SimpleSlide
 {
-
     public static class AppDataKeys
     {
         public const string CurrSpeedIndex = "001";
@@ -20,10 +19,10 @@ namespace SimpleSlide
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        private readonly String PauseStr = "Pause";
-        private readonly String PauseTT = "Pause slide show (Ctrl-P)";
-        private readonly String ContiueStr = "Continue";
-        private readonly String ContinueTT = "Continue slide show  (Ctrl-P)";
+        const String PauseStr = "Pause";
+        const String PauseTT = "Pause slide show (Ctrl-P)";
+        const String ContiueStr = "Continue";
+        const String ContinueTT = "Continue slide show  (Ctrl-C)";
 
         private readonly String? PickedFolderTokenName = "PickedFolderToken";
 
@@ -71,6 +70,7 @@ namespace SimpleSlide
             Player = new(PickedFolderTokenName, FNameProgress)
             {
                 ImagePane = [null, Image1, null], // The XAML image elements
+                ImageStoryBoard = [null, Image1Storyboard, null],
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex]
             };
 
@@ -199,6 +199,14 @@ namespace SimpleSlide
         private void FNameChanged(object? sender, string aStr)
         {
             StatusTextBlock.Text = aStr;
+
+            // Kludgey yes: When Player starts it will sometimes go diretly into Playing state.
+            // If the Pause/Contiue button is not set correctly for the current PLayer state, correct it
+            // here.
+            // This is called frequetly by Player, so as good a place as any to make the check...
+            if (Player.PlayerState.Playing == Player.CurrentPlayerState)
+                if ((String)ContinuePauseBtn.Content != PauseStr)
+                    ContinuePauseBtn.Content = PauseStr;
         }
         private async void SelectFolderBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
@@ -259,7 +267,7 @@ namespace SimpleSlide
             if (Player.MediaListLoaded)
                 switch (ContinuePauseBtn.Content)
                 {
-                    case "Pause":
+                    case PauseStr:
                         PauseOrContiue(PauseOrContinue.Pause);
                         break;
                     default: // Continue
@@ -433,12 +441,20 @@ namespace SimpleSlide
                     // Send Previous image command to Player
                     ControllerNextOrPrevious(NextOrPrevious.Previous);
                     break;
-
-                // ???
-                default:
+                default: // ???
                     base.OnKeyDown(e);
                     break;
             }
+        }
+
+        /// <summary>
+        /// Not used, at this time...
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Image1Opened(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

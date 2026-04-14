@@ -1,5 +1,5 @@
 
-- Remember play speed in serialization
+Package App as MSIX
 
 Timer fires
 	if (ready & Playing)

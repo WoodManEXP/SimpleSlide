@@ -13,23 +13,19 @@
             <RowDefinition></RowDefinition>
             <RowDefinition Height="auto"></RowDefinition>
         </Grid.RowDefinitions>
-        <Image x:Name="Image1" Grid.Row="0">
-            <!--
-            Animation is happening, but duraion is 0 ?
-            -->
+        <Image x:Name="Image1" Grid.Row="0" ImageOpened="Image1Opened">
             <Image.Triggers>
                 <EventTrigger RoutedEvent="FrameworkElement.Loaded">
                     <BeginStoryboard>
-                        <Storyboard x:Name="MyStoryboard">
+                        <Storyboard x:Name="Image1Storyboard">
                             <DoubleAnimation Storyboard.TargetName="Image1" 
                                              Storyboard.TargetProperty="Opacity" 
-                                             From="0.0" To="1.0" Duration="0:0:2" />
+                                             From="0.0" To="1.0" Duration="0:0:2"/>
                         </Storyboard>
                     </BeginStoryboard>
                 </EventTrigger>
             </Image.Triggers>
         </Image>
-
         <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="5,5,5,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
