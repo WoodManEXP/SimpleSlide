@@ -56,7 +56,7 @@ namespace SimpleSlide
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
         public Image?[] ImagePane = new Image[3];
-        public Storyboard?[] ImageStoryBoard = new Storyboard[3];
+        public Storyboard?[] ImageFadeInStoryBoard = new Storyboard[3];
         private Boolean PlayPrevious { get; set; } = false;
  
         /// <summary>
@@ -206,7 +206,7 @@ namespace SimpleSlide
                 return;
 
             Image? imagePane = ImagePane[1];
-            Storyboard? imageStoryBoard = ImageStoryBoard[1];
+            Storyboard? imageFadeInStoryBoard = ImageFadeInStoryBoard[1];
 
             using (IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read))
             {
@@ -216,7 +216,7 @@ namespace SimpleSlide
                     Windows.UI.Core.CoreDispatcherPriority.Normal,
                     async () =>
                 {
-                    imageStoryBoard?.Stop();
+                    imageFadeInStoryBoard?.Stop();
                     imagePane?.Opacity = 0D;
 
                     // Set the image source to the selected bitmap 
@@ -226,11 +226,11 @@ namespace SimpleSlide
                     };
                     bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
 
-                    bitmapImage.DecodePixelWidth = (int)imagePane.Width; //match the target Image.Width, not shown
+                    bitmapImage.DecodePixelWidth = (int)imagePane   .Width; //match the target Image.Width, not shown
                     bitmapImage.ImageOpened += (s, e) =>
                     {
                         imagePane?.Opacity = 0D;
-                        imageStoryBoard?.Begin();
+                        imageFadeInStoryBoard?.Begin();
                     };
                     imagePane?.Source = bitmapImage;
                     await bitmapImage.SetSourceAsync(fileStream);

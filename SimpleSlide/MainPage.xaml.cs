@@ -70,7 +70,7 @@ namespace SimpleSlide
             Player = new(PickedFolderTokenName, FNameProgress)
             {
                 ImagePane = [null, Image1, null], // The XAML image elements
-                ImageStoryBoard = [null, Image1Storyboard, null],
+                ImageFadeInStoryBoard = [null, Image1FadeInStoryboard, null],
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex]
             };
 
@@ -453,6 +453,11 @@ namespace SimpleSlide
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void Image1Opened(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void DoubleAnimation_Completed(object sender, object e)
         {
 
         }
