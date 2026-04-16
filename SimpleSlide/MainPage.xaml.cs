@@ -69,8 +69,8 @@ namespace SimpleSlide
 
             Player = new(PickedFolderTokenName, FNameProgress)
             {
-                ImagePane = [null, Image1, null], // The XAML image elements
-                ImageFadeInStoryBoard = [null, Image1FadeInStoryboard, null],
+                ImagePane = [Image0, Image1], // The XAML image elements
+                ImageFadeInStoryBoard = [Image0FadeInStoryboard, Image1FadeInStoryboard],
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex]
             };
 
@@ -290,7 +290,7 @@ namespace SimpleSlide
 
             LastPauseOrContinueDT = now;
 
-//   Debug.WriteLine("PauseOrContiue " + what.ToString());
+            //   Debug.WriteLine("PauseOrContiue " + what.ToString());
 
             if (PauseOrContinue.Pause == what)
             {
@@ -325,7 +325,6 @@ namespace SimpleSlide
             };
             ToolTipService.SetToolTip(element, tt);
         }
-
         private void ControllerNextOrPrevious(NextOrPrevious nextOrPrevious)
         {
             // Limit how often these are processed
@@ -354,7 +353,6 @@ namespace SimpleSlide
                     break;
             }
         }
-
         #region SpeedControl
         private void ChangePlaySpeed(ChangeSpeed change)
         {

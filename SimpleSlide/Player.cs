@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.System.Threading;
+using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Media.Imaging;
@@ -55,10 +56,10 @@ namespace SimpleSlide
         public Boolean MediaListLoaded { get; set; }
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
-        public Image?[] ImagePane = new Image[3];
-        public Storyboard?[] ImageFadeInStoryBoard = new Storyboard[3];
+        public Image[] ImagePane = new Image[2];
+        public Storyboard[] ImageFadeInStoryBoard = new Storyboard[2];
         private Boolean PlayPrevious { get; set; } = false;
- 
+
         /// <summary>
         /// Contstructor
         /// </summary>
@@ -187,8 +188,6 @@ namespace SimpleSlide
                 // Schedule to return in DelayBetweenImges milliseconds
                 ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
                             , TimeSpan.FromMilliseconds(DelayBetweenImges));
-
-            //Debug.WriteLine("DelayBetweenImges " + DelayBetweenImges.ToString());
         }
         private async Task ShowNextImage()
         {
@@ -200,44 +199,46 @@ namespace SimpleSlide
             StorageFile? sF = await MediaList.GetPreviousMedia();
             await ShowImage(sF);
         }
+        private int FadeInImageNum { get; set; } = 0;
         private async Task ShowImage(StorageFile? sF)
         {
             if (null == sF)
                 return;
 
-            Image? imagePane = ImagePane[1];
-            Storyboard? imageFadeInStoryBoard = ImageFadeInStoryBoard[1];
+            //Debug.WriteLine("ShowImage: Enter");
 
-            using (IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read))
-            {
-                // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
-                // via a lambda expression, to that thread.
-                await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+            // Place image in this image element using this storyboard
+            Image image = ImagePane[FadeInImageNum];
+            Storyboard storyboard = ImageFadeInStoryBoard[FadeInImageNum];
+            FadeInImageNum = (0 == FadeInImageNum) ? 1 : 0;
+            Image otherImage = ImagePane[FadeInImageNum];
+
+            // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
+            // via a lambda expression, to that thread.
+            await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
                     Windows.UI.Core.CoreDispatcherPriority.Normal,
                     async () =>
                 {
-                    imageFadeInStoryBoard?.Stop();
-                    imagePane?.Opacity = 0D;
-
                     // Set the image source to the selected bitmap 
                     var bitmapImage = new BitmapImage()
                     {
                         CreateOptions = BitmapCreateOptions.IgnoreImageCache
                     };
-                    bitmapImage.CreateOptions = BitmapCreateOptions.IgnoreImageCache;
 
-                    bitmapImage.DecodePixelWidth = (int)imagePane   .Width; //match the target Image.Width, not shown
+                    bitmapImage.DecodePixelWidth = (int)image.Width; //match the target Image.Width, not shown
                     bitmapImage.ImageOpened += (s, e) =>
                     {
-                        imagePane?.Opacity = 0D;
-                        imageFadeInStoryBoard?.Begin();
+                        image.Opacity = 0D;
+                        otherImage.Opacity = 0D;
+                        storyboard.Begin();
                     };
-                    imagePane?.Source = bitmapImage;
+                    IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read);
                     await bitmapImage.SetSourceAsync(fileStream);
+
+                    image?.Source = bitmapImage;
                 }
                 );
-                FNameProgress.Report(MediaList.CurrentFolderName() + sF.Name);
-            }
+            FNameProgress.Report(MediaList.CurrentFolderName() + sF.Name);
         }
     }
 }
