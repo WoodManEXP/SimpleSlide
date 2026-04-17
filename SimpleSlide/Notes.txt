@@ -1,5 +1,7 @@
 
 Package App as MSIX  TFSBMF
+MD XBox 10.0.0.92, PIN 
+Icon https://www.flaticon.com/free-icon/dog_5276156
 
 Timer fires
 	if (ready & Playing)

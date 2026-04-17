@@ -1,8 +1,16 @@
 {
   "profiles": {
-    "SimpleSlide": {
+    "SimpleSlide Laptop": {
       "commandName": "MsixPackage",
-      "remoteDebugEnabled": false
+      "remoteDebugEnabled": false,
+      "remoteDebugMachine": "",
+      "authenticationMode": "Universal"
+    },
+    "SimpleSlide XBox": {
+      "commandName": "MsixPackage",
+      "remoteDebugEnabled": true,
+      "remoteDebugMachine": "10.0.0.92",
+      "authenticationMode": "Universal"
     }
   }
 }

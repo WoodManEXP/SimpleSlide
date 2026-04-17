@@ -156,7 +156,7 @@ namespace SimpleSlide
                 }
                 else if (reading.Buttons.HasFlag(GamepadButtons.A)) // Continue
                     PauseOrContiue(PauseOrContinue.Continue);
-                else if (reading.Buttons.HasFlag(GamepadButtons.B)) // Pause
+                else if (reading.Buttons.HasFlag(GamepadButtons.X)) // Pause
                     PauseOrContiue(PauseOrContinue.Pause);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadUp)) // Speed up
                     ChangePlaySpeed(ChangeSpeed.Faster);
