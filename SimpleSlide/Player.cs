@@ -222,14 +222,14 @@ namespace SimpleSlide
                     // Set the image source to the selected bitmap 
                     var bitmapImage = new BitmapImage()
                     {
-                        CreateOptions = BitmapCreateOptions.IgnoreImageCache
+                        CreateOptions = BitmapCreateOptions.IgnoreImageCache // ecessaary ??
                     };
 
                     bitmapImage.DecodePixelWidth = (int)image.Width; //match the target Image.Width, not shown
                     bitmapImage.ImageOpened += (s, e) =>
                     {
-                        image.Opacity = 0D;
                         otherImage.Opacity = 0D;
+                        image.Opacity = 0D;
                         storyboard.Begin();
                     };
                     IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read);
