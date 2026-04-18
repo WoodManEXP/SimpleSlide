@@ -207,11 +207,12 @@ namespace SimpleSlide
 
             //Debug.WriteLine("ShowImage: Enter");
 
-            // Place image in this image element using this storyboard
-            Image image = ImagePane[FadeInImageNum];
-            Storyboard storyboard = ImageFadeInStoryBoard[FadeInImageNum];
+            // Select image element and storyboard, moving back and forth between the two.
+            Image thisImage = ImagePane[FadeInImageNum];
+            Storyboard thisStoryboard = ImageFadeInStoryBoard[FadeInImageNum];
             FadeInImageNum = (0 == FadeInImageNum) ? 1 : 0;
-            Image otherImage = ImagePane[FadeInImageNum];
+            Image otherImage = ImagePane[FadeInImageNum]; // This'll be the currently displayed image
+            Storyboard otherStoryboard = ImageFadeInStoryBoard[FadeInImageNum];
 
             // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
             // via a lambda expression, to that thread.
@@ -222,20 +223,30 @@ namespace SimpleSlide
                     // Set the image source to the selected bitmap 
                     var bitmapImage = new BitmapImage()
                     {
-                        CreateOptions = BitmapCreateOptions.IgnoreImageCache // ecessaary ??
+                        CreateOptions = BitmapCreateOptions.IgnoreImageCache // Necessary ??
                     };
 
-                    bitmapImage.DecodePixelWidth = (int)image.Width; //match the target Image.Width, not shown
+                    bitmapImage.DecodePixelWidth = (int)thisImage.Width; //match the target Image.Width, not shown
                     bitmapImage.ImageOpened += (s, e) =>
                     {
-                        otherImage.Opacity = 0D;
-                        image.Opacity = 0D;
-                        storyboard.Begin();
+                        // For making new image appear
+                        var thisDoubleAnimation = (DoubleAnimation)thisStoryboard.Children[0];
+                        thisDoubleAnimation.Duration = new Duration(TimeSpan.FromSeconds(1));
+                        thisDoubleAnimation.From = 0D;
+                        thisDoubleAnimation.To = 1D;
+
+                        // For making existig image disappear
+                        var otherDoubleAnimation = (DoubleAnimation)otherStoryboard.Children[0];
+                        otherDoubleAnimation.Duration = new Duration(TimeSpan.FromSeconds(0));
+                        otherDoubleAnimation.From = 1D;
+                        otherDoubleAnimation.To = 0D;
+
+                        otherStoryboard.Begin();
+                        thisStoryboard.Begin();
                     };
                     IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read);
                     await bitmapImage.SetSourceAsync(fileStream);
-
-                    image?.Source = bitmapImage;
+                    thisImage?.Source = bitmapImage;
                 }
                 );
             FNameProgress.Report(MediaList.CurrentFolderName() + sF.Name);

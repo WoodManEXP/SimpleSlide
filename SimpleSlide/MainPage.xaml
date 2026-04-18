@@ -37,25 +37,24 @@
             </Grid.RowDefinitions>
             <StackPanel x:Name="OnScreenControls" Grid.Column="0" Grid.Row="0" Orientation="Horizontal" Visibility="Visible">
                 <Button x:Name="SelectFolderBtn" Click="SelectFolderBtn_Click" Content="Select folder" Margin="3,3,3,3"
-                ToolTipService.ToolTip="Select folder from which to begin (Ctrl-O)"
+                        ToolTipService.ToolTip="Select folder from which to begin (Ctrl-O)"
                         BorderBrush="White" Foreground="White">
                     <Button.KeyboardAccelerators>
                         <KeyboardAccelerator Key="O" Modifiers="Control"/>
                     </Button.KeyboardAccelerators>
                 </Button>
                 <Button x:Name="ContinuePauseBtn" Content="Continue" Margin="3,3,3,3"
-                Click="ContinuePauseBtn_Click" ToolTipService.ToolTip="Continue previous slide show"
+                        Click="ContinuePauseBtn_Click" ToolTipService.ToolTip="Continue slide show"
                         BorderBrush="White" Foreground="White">
                     <Button.KeyboardAccelerators>
-                        <KeyboardAccelerator Key="P" Modifiers="Control"/>
-                        <KeyboardAccelerator Key="C" Modifiers="Control"/>
+                        <KeyboardAccelerator Key="P"/>
                     </Button.KeyboardAccelerators>
                 </Button>
             </StackPanel>
-            <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Grid.Row="0" Padding="20,5,5,5" VerticalAlignment="Center" Text="FName" Foreground="White" />
+            <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Grid.Row="0" Padding="20,5,5,5" VerticalAlignment="Center" Text="FName" Foreground="Black" />
             <StackPanel x:Name="PlaySpeedStackPanel" Grid.Column="2" Grid.Row="0" Margin="15,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">
                 <ProgressBar x:Name="PlaySpeedBar" Width="200" Height="10" Minimum="-1"/>
-                <TextBlock x:Name="PlaySpeedTextBlock" Padding="0,0,0,0" HorizontalAlignment="Center" Foreground="White"/>
+                <TextBlock x:Name="PlaySpeedTextBlock" Padding="0,0,0,0" HorizontalAlignment="Center" Foreground="Black"/>
             </StackPanel>
 
         </Grid>

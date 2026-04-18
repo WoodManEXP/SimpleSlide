@@ -20,9 +20,9 @@ namespace SimpleSlide
     public sealed partial class MainPage : Page
     {
         const String PauseStr = "Pause";
-        const String PauseTT = "Pause slide show (Ctrl-P)";
+        const String PauseTT = "Pause slide show (P)";
         const String ContiueStr = "Continue";
-        const String ContinueTT = "Continue slide show  (Ctrl-C)";
+        const String ContinueTT = "Continue slide show (P)";
 
         private readonly String? PickedFolderTokenName = "PickedFolderToken";
 
@@ -154,10 +154,16 @@ namespace SimpleSlide
                     if (!SelectingFolder)
                         SelectFolder();
                 }
-                else if (reading.Buttons.HasFlag(GamepadButtons.A)) // Continue
-                    PauseOrContiue(PauseOrContinue.Continue);
-                else if (reading.Buttons.HasFlag(GamepadButtons.X)) // Pause
-                    PauseOrContiue(PauseOrContinue.Pause);
+                else if (reading.Buttons.HasFlag(GamepadButtons.A)) // Continue/Pause
+                {
+                    if (Player.PlayerState.Playing == Player.CurrentPlayerState)
+                        PauseOrContiue(PauseOrContinue.Pause);
+                    else
+                    if (Player.PlayerState.Paused == Player.CurrentPlayerState)
+                            PauseOrContiue(PauseOrContinue.Continue);
+                }
+//                else if (reading.Buttons.HasFlag(GamepadButtons.X)) // Pause
+//                    PauseOrContiue(PauseOrContinue.Pause);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadUp)) // Speed up
                     ChangePlaySpeed(ChangeSpeed.Faster);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Slow down
@@ -262,8 +268,6 @@ namespace SimpleSlide
         }
         private void ContinuePauseBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
-            var CommandQueue = Player.CommandQueue;
-
             if (Player.MediaListLoaded)
                 switch (ContinuePauseBtn.Content)
                 {
