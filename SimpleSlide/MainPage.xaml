@@ -11,12 +11,12 @@
         <Storyboard x:Name="Image0FadeInStoryboard">
             <DoubleAnimation Storyboard.TargetName="Image0"
                              Storyboard.TargetProperty="Opacity" 
-                             From="0.0" To="1.0" Duration="0:0:1"/>
+                             From="0.0" To="1.0" Duration="0:0:1"/> <!-- Set in code-behind -->
         </Storyboard>
         <Storyboard x:Name="Image1FadeInStoryboard">
             <DoubleAnimation Storyboard.TargetName="Image1" 
                              Storyboard.TargetProperty="Opacity" 
-                             From="0.0" To="1.0" Duration="0:0:1"/>
+                             From="0.0" To="1.0" Duration="0:0:1"/> <!-- Set in code-behind -->
         </Storyboard>
     </Page.Resources>
     <Grid Background="DarkGray" KeyDown="KeyDownEvent">

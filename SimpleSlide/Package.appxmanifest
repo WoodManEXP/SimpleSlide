@@ -9,10 +9,10 @@
 
 	<Identity
 	  Name="WoodManEXP.SimpleSlide"
-	  Publisher="CN=WoodManEXP"
-	  Version="1.0.0.0" />
+	  Publisher="CN=3A2ADAB1-FF0C-493B-94AF-33B4691B0110"
+	  Version="1.0.21.0" />
 
-	<mp:PhoneIdentity PhoneProductId="48c16aaf-86bd-40a8-90ce-92782eac061d" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+	<mp:PhoneIdentity PhoneProductId="b341011f-95c5-4406-b5ae-5598d90d21a9" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
 	<Properties>
 		<DisplayName>SimpleSlide</DisplayName>
@@ -36,7 +36,7 @@
 			  DisplayName="SimpleSlide"
 			  Square150x150Logo="Assets\Square150x150Logo.png"
 			  Square44x44Logo="Assets\Square44x44Logo.png"
-			  Description="SimpleSlide slideshow player for Windows ad XBox"
+			  Description="SimpleSlide is a slide player app for Xbox and Windows."
 			  BackgroundColor="transparent">
 				<uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" Square71x71Logo="Assets\SmallTile.png" Square310x310Logo="Assets\LargeTile.png"/>
 				<uap:SplashScreen Image="Assets\SplashScreen.png" />
