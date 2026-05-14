@@ -13,6 +13,8 @@ Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*3A2ADAB1-
 Export-PfxCertificate -cert "Cert:\CurrentUser\My\BDECF4F827B7B82F4C2819B99A746A00044C1BF5" -FilePath C:\Users\Robert\source\repos\SimpleSlide\SimpleSlide\PfxCertificate.pfx -Password $password
 Import-PfxCertificate -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" -Password $password -FilePath C:\Users\Robert\source\repos\SimpleSlide\SimpleSlide\PfxCertificate.pfx
 
+Privacy Policy
+https://sites.google.com/view/simpleslide-privacy-policy/home
 
 Timer fires
 	if (ready & Playing)
@@ -49,3 +51,5 @@ Pause
 	if (ready)
 		Kill Timer
 		Set to Paused
+
+- Select no media folder after media folder

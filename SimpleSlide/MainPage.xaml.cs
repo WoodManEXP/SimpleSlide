@@ -20,9 +20,9 @@ namespace SimpleSlide
     public sealed partial class MainPage : Page
     {
         const String PauseStr = "Pause";
-        const String PauseTT = "Pause slide show (P)";
-        const String ContiueStr = "Continue";
-        const String ContinueTT = "Continue slide show (P)";
+        readonly String PauseTT = SimpleSlide.Strings.PauseTT;
+        readonly String ContiueStr = SimpleSlide.Strings.ContiueStr;
+        readonly String ContinueTT = SimpleSlide.Strings.ContinueTT;
 
         private readonly String? PickedFolderTokenName = "PickedFolderToken";
 
@@ -75,6 +75,7 @@ namespace SimpleSlide
             };
 
             FNameProgress.ProgressChanged += FNameChanged;
+            FNameChanged(null, SimpleSlide.Strings.SelectFolder); // Set initial value
 
             ControllerInit(); // Set up for XBox controller
 
@@ -109,6 +110,7 @@ namespace SimpleSlide
                     async () =>
                     {
                         OnScreenControls.Visibility = Visibility.Collapsed; // Hide on-screen controls
+                        ControllerControls.Visibility = Visibility.Visible; // Show controller cotrols
                         ControllerTimer?.Start(); // XBox controller attached, start ControllerTimer
                     }
                 );
@@ -127,6 +129,7 @@ namespace SimpleSlide
                     async () =>
                     {
                         OnScreenControls.Visibility = Visibility.Visible; // Bring the XAML controls back
+                        ControllerControls.Visibility = Visibility.Collapsed; // Hide controller cotrols
                         ControllerTimer?.Stop(); // No contoller, no need
                     }
                 );
@@ -159,11 +162,11 @@ namespace SimpleSlide
                     if (Player.PlayerState.Playing == Player.CurrentPlayerState)
                         PauseOrContiue(PauseOrContinue.Pause);
                     else
-                    if (Player.PlayerState.Paused == Player.CurrentPlayerState)
+                        if (Player.PlayerState.Paused == Player.CurrentPlayerState)
                             PauseOrContiue(PauseOrContinue.Continue);
                 }
-//                else if (reading.Buttons.HasFlag(GamepadButtons.X)) // Pause
-//                    PauseOrContiue(PauseOrContinue.Pause);
+                //                else if (reading.Buttons.HasFlag(GamepadButtons.X)) // Pause
+                //                    PauseOrContiue(PauseOrContinue.Pause);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadUp)) // Speed up
                     ChangePlaySpeed(ChangeSpeed.Faster);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Slow down
@@ -172,6 +175,8 @@ namespace SimpleSlide
                     ControllerNextOrPrevious(NextOrPrevious.Next);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadLeft)) // Previous image
                     ControllerNextOrPrevious(NextOrPrevious.Previous);
+                else if (reading.Buttons.HasFlag(GamepadButtons.Y)) // Continue/Pause
+                    HelpXBox();
 
                 //pbLeftThumbstickX.Value = reading.LeftThumbstickX;
                 //pbLeftThumbstickY.Value = reading.LeftThumbstickY;
@@ -194,6 +199,22 @@ namespace SimpleSlide
                 //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.DPadUp), lblDPadUp);
                 //ChangeVisibility(reading.Buttons.HasFlag(GamepadButtons.DPadDown), lblDPadDown);
             }
+        }
+
+        /// <summary>
+        /// Display help whe o XBox
+        /// </summary>
+        private Boolean XBoxHelpOpen = false;
+        private async void HelpXBox()
+        {
+            if (XBoxHelpOpen)
+                return;
+            XBoxHelpOpen = true;
+            XBoxHelp xBoxHelp = new XBoxHelp();
+            PauseOrContiue(PauseOrContinue.Pause); // Pause slides
+            await xBoxHelp.ShowAsync();
+            XBoxHelpOpen = false;
+            PauseOrContiue(PauseOrContinue.Continue); // Contiue slides
         }
         #endregion XBoxController
 
@@ -248,7 +269,7 @@ namespace SimpleSlide
                 ContinuePauseBtn.IsEnabled = true;
                 SetToolTip(ContinuePauseBtn, PauseTT);
 
-                FNameChanged(null, "Starting...");
+                FNameChanged(null, SimpleSlide.Strings.Starting);
 
                 // Send Play command to player
                 Player.CommandQueue.Enqueue(new PlayerCommand()
@@ -318,7 +339,7 @@ namespace SimpleSlide
                 {
                     Command = PlayerCommand.PlayerCommands.Continue
                 });
-                StatusTextBlock.Text = "Continuing...";
+                StatusTextBlock.Text = SimpleSlide.Strings.Continuing;
             }
         }
         private void SetToolTip(DependencyObject element, String value)
@@ -387,7 +408,7 @@ namespace SimpleSlide
             PlaySpeedBar.Value = (Double)CurrSpeedIndex; // Adjust the PlaySpeedBar value
 
             int currSpeedMS = PlaySpeeds[CurrSpeedIndex];
-            PlaySpeedTextBlock.Text = "Delay " + (currSpeedMS / 1000).ToString() + " seconds";
+            PlaySpeedTextBlock.Text = SimpleSlide.Strings.Delay + " " + (currSpeedMS / 1000).ToString() + " seconds";
 
             // Send ChangeSpeed command to player
             Player.CommandQueue.Enqueue(new PlayerCommand()

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -45,10 +44,9 @@ namespace SimpleSlide
             Paused
         }
         public PlayerState CurrentPlayerState { get; set; }
-
         private MediaList MediaList { get; set; }
         public String? PickedFolderToken { get; set; }
-        public IProgress<String> FNameProgress;
+        private IProgress<String> FNameProgress { get; set; }
 
         // For passing commands from UI to Player
         public ConcurrentQueue<PlayerCommand> CommandQueue { get; private set; }
@@ -65,14 +63,11 @@ namespace SimpleSlide
         /// </summary>
         /// <param name="fNameProgress"></param>
         /// <param name="progressBarProgress"></param>
+        [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.MediaList(Progress<String>)")]
         public Player(String pickedFolderToken, Progress<String> fNameProgress)
         {
 
-            MediaList = new()
-            {
-                PickedFolderToken = pickedFolderToken
-            };
-
+            MediaList = new(fNameProgress);
             PickedFolderToken = pickedFolderToken;
             FNameProgress = fNameProgress;
             CommandQueue = new();
@@ -121,9 +116,10 @@ namespace SimpleSlide
                             ContinuePlaying();
                             break;
                         case PlayerCommand.PlayerCommands.NewFolderStart:
-                            //ProgressBarProgress.Report(true);
-                            await MediaList.PrepForFolder();
-                            //ProgressBarProgress.Report(false);
+                            MediaList.FreshStart();
+                            StorageFolder sF = (Windows.Storage.StorageFolder)await Windows.Storage.AccessCache.StorageApplicationPermissions.
+                                        FutureAccessList.GetItemAsync(PickedFolderToken);
+                            await MediaList.PrepForFolder(sF);
                             CurrentPlayerState = PlayerState.Playing;
                             // Thread to play the images
                             ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
@@ -167,19 +163,43 @@ namespace SimpleSlide
         }
 
         /// <summary>
-        /// Respod to timer event and play next image
+        /// Respod to timer event and play next or previous image
         /// </summary>
         /// <param name="timer"></param>
+        [RequiresDynamicCode("Calls SimpleSlide.Player.NextOrPrevImage()")]
+        [RequiresUnreferencedCode("Calls SimpleSlide.Player.NextOrPrevImage()")]
         private async void TimerElapsedHandler(ThreadPoolTimer? timer)
         {
             if (MediaListLoaded)
             {
                 AcceptingCommands = false;
-                if (PlayPrevious)
-                    await ShowPrevImage();
-                else
-                    await ShowNextImage();
+                Boolean bResult = await NextOrPrevImage(); // Use try/catch ??
                 AcceptingCommands = true;
+                if (!bResult)
+                {
+                    // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
+                    // via a lambda expression, to that thread.
+                    await Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                        Windows.UI.Core.CoreDispatcherPriority.Normal,
+                        (Windows.UI.Core.DispatchedHandler)(async () =>
+                        {
+                            // Display dialog
+                            MessageDialog messageDialog = new()
+                            {
+                                MessageTitle = SimpleSlide.Strings.NoMediaTitle,
+                                Message0 = SimpleSlide.Strings.NoMediaMessage.Replace("_0", MediaList.CurrentFolderName(false)),
+                                Message1 = SimpleSlide.Strings.LookingFor  + SimpleSlide.Strings.MediaTypes
+                            };
+                            await messageDialog.ShowAsync();
+                        })
+                    );
+                    FNameProgress.Report(SimpleSlide.Strings.SelectFolder);
+
+                    // No media was located
+                    CurrentPlayerState = PlayerState.DoingNothing;
+                    MediaListLoaded = false;
+                    MediaList.FreshStart();
+                }
             }
 
             PlayPrevious = false; // Default state is to progress forward
@@ -189,16 +209,22 @@ namespace SimpleSlide
                 ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
                             , TimeSpan.FromMilliseconds(DelayBetweenImges));
         }
-        private async Task ShowNextImage()
+
+        [RequiresDynamicCode("Calls SimpleSlide.MediaList.GetNextMedia()")]
+        [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.GetNextMedia()")]
+        private async Task<Boolean> NextOrPrevImage()
         {
-            StorageFile? sF = await MediaList.GetNextMedia();
-            await ShowImage(sF);
+            StorageFile? sF;
+
+            sF = PlayPrevious ? await MediaList.GetPreviousMedia() : await MediaList.GetNextMedia();
+            if (null == sF)
+                return false; // Boundry case: No usable media encountered
+            else
+                await ShowImage(sF);
+
+            return true;
         }
-        private async Task ShowPrevImage()
-        {
-            StorageFile? sF = await MediaList.GetPreviousMedia();
-            await ShowImage(sF);
-        }
+
         private int FadeInImageNum { get; set; } = 0;
         private async Task ShowImage(StorageFile? sF)
         {
@@ -249,7 +275,7 @@ namespace SimpleSlide
                     thisImage?.Source = bitmapImage;
                 }
                 );
-            FNameProgress.Report(MediaList.CurrentFolderName() + sF.Name);
+            FNameProgress.Report(MediaList.CurrentFolderName(true) + sF.Name);
         }
     }
 }
