@@ -40,7 +40,8 @@ namespace SimpleSlide
         private static readonly int[] PlaySpeeds = [2 * 1000, 5 * 1000, 10 * 1000, 20 * 1000, 30 * 1000, 60 * 1000];
         private static readonly int MaxSpeed = PlaySpeeds.Length - 1;
         private static int CurrSpeedIndex = 2;
-        private static readonly int PSInterval = 250;
+        private static int PSInterval { get; } = 250;
+        private static int PCInterval { get; } = 4 * 250; // Pause/Continue
         private ThreadPoolTimer? PlaySpeedBarTimer { get; set; } = null;
         private readonly TimeSpan PlaySpeedBarDelay = TimeSpan.FromMilliseconds(2 * 1000);
         private DateTime LastSpeedChangeDT = DateTime.Now;
@@ -161,9 +162,8 @@ namespace SimpleSlide
                 {
                     if (Player.PlayerState.Playing == Player.CurrentPlayerState)
                         PauseOrContiue(PauseOrContinue.Pause);
-                    else
-                        if (Player.PlayerState.Paused == Player.CurrentPlayerState)
-                            PauseOrContiue(PauseOrContinue.Continue);
+                    else if (Player.PlayerState.Paused == Player.CurrentPlayerState)
+                        PauseOrContiue(PauseOrContinue.Continue);
                 }
                 //                else if (reading.Buttons.HasFlag(GamepadButtons.X)) // Pause
                 //                    PauseOrContiue(PauseOrContinue.Pause);
@@ -310,7 +310,7 @@ namespace SimpleSlide
             // Limit how often these are processed
             DateTime now = DateTime.Now;
             TimeSpan interval = now - LastPauseOrContinueDT;
-            if (interval.TotalMilliseconds < PSInterval)
+            if (interval.TotalMilliseconds < PCInterval)
                 return;
 
             LastPauseOrContinueDT = now;

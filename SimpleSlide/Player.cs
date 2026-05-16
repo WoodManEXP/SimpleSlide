@@ -53,7 +53,7 @@ namespace SimpleSlide
         public int DelayBetweenImges { get; set; } // MS
         public Boolean MediaListLoaded { get; set; }
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
-        ThreadPoolTimer? ThreadPoolTimer { get; set; } = null;
+        ThreadPoolTimer? NextImageTimer { get; set; } = null;
         public Image[] ImagePane = new Image[2];
         public Storyboard[] ImageFadeInStoryBoard = new Storyboard[2];
         private Boolean PlayPrevious { get; set; } = false;
@@ -109,7 +109,7 @@ namespace SimpleSlide
                             CurrentPlayerState = PlayerState.DoingNothing;
                             break;
                         case PlayerCommand.PlayerCommands.Pause:
-                            ThreadPoolTimer?.Cancel();
+                            NextImageTimer?.Cancel();
                             CurrentPlayerState = PlayerState.Paused;
                             break;
                         case PlayerCommand.PlayerCommands.Continue:
@@ -122,7 +122,7 @@ namespace SimpleSlide
                             await MediaList.PrepForFolder(sF);
                             CurrentPlayerState = PlayerState.Playing;
                             // Thread to play the images
-                            ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
+                            NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
                                                     , TimeSpan.FromMilliseconds(DelayBetweenImges));
                             MediaListLoaded = true;
                             break;
@@ -133,18 +133,18 @@ namespace SimpleSlide
                             if (MediaListLoaded)
                             {
                                 // Kill timer, immediately move to next image
-                                ThreadPoolTimer?.Cancel();
+                                NextImageTimer?.Cancel();
                                 PlayPrevious = false; // to be sure
-                                TimerElapsedHandler(null);
+                                NextImageHandler(null);
                             }
                             break;
                         case PlayerCommand.PlayerCommands.Previous:
                             if (MediaListLoaded)
                             {
                                 // Kill timer, immediately move to previous image
-                                ThreadPoolTimer?.Cancel();
+                                NextImageTimer?.Cancel();
                                 PlayPrevious = true;
-                                TimerElapsedHandler(null);
+                                NextImageHandler(null);
                             }
                             break;
                         default:
@@ -159,7 +159,7 @@ namespace SimpleSlide
         private void ContinuePlaying()
         {
             CurrentPlayerState = PlayerState.Playing;
-            TimerElapsedHandler(null); // Fire the timer delegate
+            NextImageHandler(null); // Fire the timer delegate
         }
 
         /// <summary>
@@ -168,14 +168,16 @@ namespace SimpleSlide
         /// <param name="timer"></param>
         [RequiresDynamicCode("Calls SimpleSlide.Player.NextOrPrevImage()")]
         [RequiresUnreferencedCode("Calls SimpleSlide.Player.NextOrPrevImage()")]
-        private async void TimerElapsedHandler(ThreadPoolTimer? timer)
+        private async void NextImageHandler(ThreadPoolTimer? timer)
         {
             if (MediaListLoaded)
             {
                 AcceptingCommands = false;
-                Boolean bResult = await NextOrPrevImage(); // Use try/catch ??
-                AcceptingCommands = true;
-                if (!bResult)
+                try
+                {
+                    await NextOrPrevImage();
+                }
+                catch (NoMediaException)
                 {
                     // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
                     // via a lambda expression, to that thread.
@@ -188,7 +190,7 @@ namespace SimpleSlide
                             {
                                 MessageTitle = SimpleSlide.Strings.NoMediaTitle,
                                 Message0 = SimpleSlide.Strings.NoMediaMessage.Replace("_0", MediaList.CurrentFolderName(false)),
-                                Message1 = SimpleSlide.Strings.LookingFor  + SimpleSlide.Strings.MediaTypes
+                                Message1 = SimpleSlide.Strings.LookingFor + SimpleSlide.Strings.MediaTypes
                             };
                             await messageDialog.ShowAsync();
                         })
@@ -200,29 +202,35 @@ namespace SimpleSlide
                     MediaListLoaded = false;
                     MediaList.FreshStart();
                 }
+                finally
+                {
+                    AcceptingCommands = true;
+                }
             }
 
             PlayPrevious = false; // Default state is to progress forward
 
             if (CurrentPlayerState == PlayerState.Playing)
                 // Schedule to return in DelayBetweenImges milliseconds
-                ThreadPoolTimer = ThreadPoolTimer.CreateTimer(TimerElapsedHandler
+                NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
                             , TimeSpan.FromMilliseconds(DelayBetweenImges));
         }
 
         [RequiresDynamicCode("Calls SimpleSlide.MediaList.GetNextMedia()")]
         [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.GetNextMedia()")]
-        private async Task<Boolean> NextOrPrevImage()
+        private async Task NextOrPrevImage()
         {
             StorageFile? sF;
 
-            sF = PlayPrevious ? await MediaList.GetPreviousMedia() : await MediaList.GetNextMedia();
-            if (null == sF)
-                return false; // Boundry case: No usable media encountered
-            else
+            try
+            {
+                sF = PlayPrevious ? await MediaList.GetPreviousMedia() : await MediaList.GetNextMedia();
                 await ShowImage(sF);
-
-            return true;
+            }
+            catch (NoMediaException)
+            {
+                throw new NoMediaException();
+            }
         }
 
         private int FadeInImageNum { get; set; } = 0;

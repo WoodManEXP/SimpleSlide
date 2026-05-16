@@ -7,6 +7,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading.Tasks;
+using Windows.Services.Maps;
 using Windows.Storage;
 using Windows.Storage.Search;
 using Windows.UI.Xaml.Controls;
@@ -192,13 +193,20 @@ namespace SimpleSlide
         [RequiresDynamicCode("Calls SimpleSlide.MediaList.WritePersistentState()")]
         public async Task<StorageFile?> GetNextMedia()
         {
-            StorageFile? sF = await StackGetNext();
+            StorageFile? sF;
+            try
+            {
+                sF = await StackGetNext();
 
-            await SerializeState(); // place in folder hierachy has changed, remember.
+                await SerializeState(); // place in folder hierachy has changed, remember.
 
-            if (null != sF) // Have encountered at least one media file 
-                EncounteredA_MediaFile = true;
-
+                if (null != sF) // Have encountered at least one media file 
+                    EncounteredA_MediaFile = true;
+            }
+            catch (NoMediaException)
+            {
+                throw new NoMediaException();
+            }
             return sF;
         }
 
@@ -254,7 +262,7 @@ namespace SimpleSlide
                             // Folder hierarchy and contents have been completel traversed with
                             // no playable media encoutered.
                             if (!EncounteredA_MediaFile)
-                                return null;
+                                throw new NoMediaException();
                         }
 
                 // Any next files remaining in this folder?
