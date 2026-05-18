@@ -16,7 +16,8 @@
         <Storyboard x:Name="Image1FadeInStoryboard">
             <DoubleAnimation Storyboard.TargetName="Image1" 
                              Storyboard.TargetProperty="Opacity" 
-                             From="0.0" To="1.0" Duration="0:0:1"/> <!-- Set in code-behind -->
+                             From="0.0" To="1.0" Duration="0:0:1"/>
+            <!-- Set in code-behind -->
         </Storyboard>
     </Page.Resources>
     <Grid Background="DarkGray" KeyDown="KeyDownEvent">
@@ -24,6 +25,8 @@
             <RowDefinition></RowDefinition>
             <RowDefinition Height="auto"></RowDefinition>
         </Grid.RowDefinitions>
+        <ProgressRing x:Name="WorkingThing" Grid.Row="0" Visibility="Collapsed" IsActive="False"
+                      Foreground="White" Height="100" Width="100"/>
         <Image x:Name="Image0" Grid.Row="0"/>
         <Image x:Name="Image1" Grid.Row="0"/>
         <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="5,5,5,5">

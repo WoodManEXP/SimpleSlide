@@ -72,7 +72,8 @@ namespace SimpleSlide
             {
                 ImagePane = [Image0, Image1], // The XAML image elements
                 ImageFadeInStoryBoard = [Image0FadeInStoryboard, Image1FadeInStoryboard],
-                DelayBetweenImges = PlaySpeeds[CurrSpeedIndex]
+                DelayBetweenImges = PlaySpeeds[CurrSpeedIndex],
+                WorkingThing = WorkingThing // ProgressRing
             };
 
             FNameProgress.ProgressChanged += FNameChanged;

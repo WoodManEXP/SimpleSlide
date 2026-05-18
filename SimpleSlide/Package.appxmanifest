@@ -10,7 +10,7 @@
 	<Identity
 	  Name="WoodManEXP.SimpleSlide"
 	  Publisher="CN=3A2ADAB1-FF0C-493B-94AF-33B4691B0110"
-	  Version="1.0.25.0" />
+	  Version="1.0.26.0" />
 
 	<mp:PhoneIdentity PhoneProductId="b341011f-95c5-4406-b5ae-5598d90d21a9" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

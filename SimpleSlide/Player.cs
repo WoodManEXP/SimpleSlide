@@ -56,6 +56,7 @@ namespace SimpleSlide
         ThreadPoolTimer? NextImageTimer { get; set; } = null;
         public Image[] ImagePane = new Image[2];
         public Storyboard[] ImageFadeInStoryBoard = new Storyboard[2];
+        public ProgressRing? WorkingThing { get; set; }
         private Boolean PlayPrevious { get; set; } = false;
 
         /// <summary>
@@ -116,6 +117,8 @@ namespace SimpleSlide
                             ContinuePlaying();
                             break;
                         case PlayerCommand.PlayerCommands.NewFolderStart:
+                            SetWorkingThing(true);
+                            NoImages();
                             MediaList.FreshStart();
                             StorageFolder sF = (Windows.Storage.StorageFolder)await Windows.Storage.AccessCache.StorageApplicationPermissions.
                                         FutureAccessList.GetItemAsync(PickedFolderToken);
@@ -125,6 +128,7 @@ namespace SimpleSlide
                             NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
                                                     , TimeSpan.FromMilliseconds(DelayBetweenImges));
                             MediaListLoaded = true;
+                            SetWorkingThing(false);
                             break;
                         case PlayerCommand.PlayerCommands.ChangeSpeed:
                             DelayBetweenImges = playerCommand.Value; // Miliseconds
@@ -154,6 +158,46 @@ namespace SimpleSlide
                 // As this is an infinite loop, yield a bit to give the rest of the system a chance
                 await Task.Delay(50);
             }
+        }
+
+        /// <summary>
+        /// Remove any current images
+        /// </summary>
+        private async void NoImages()
+        {
+            // No need to wait on this
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                Windows.UI.Core.CoreDispatcherPriority.Normal,
+                (Windows.UI.Core.DispatchedHandler)(async () =>
+                {
+                    ImagePane[0].Source = ImagePane[1].Source = null;
+                })
+            );
+        }
+
+        /// <summary>
+        /// Start/Stop the working thing indicator
+        /// </summary>
+        /// <param name="set"></param>
+        private async void SetWorkingThing(Boolean set)
+        {
+            // No need to wait on this
+            _ = Windows.ApplicationModel.Core.CoreApplication.MainView.CoreWindow.Dispatcher.RunAsync(
+                Windows.UI.Core.CoreDispatcherPriority.Normal,
+                (Windows.UI.Core.DispatchedHandler)(async () =>
+                {
+                    if (set)
+                    {
+                        WorkingThing?.IsActive = true;
+                        WorkingThing?.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        WorkingThing?.IsActive = false;
+                        WorkingThing?.Visibility = Visibility.Collapsed;
+                    }
+                })
+            );
         }
 
         private void ContinuePlaying()
