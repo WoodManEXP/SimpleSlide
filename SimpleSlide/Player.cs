@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Streams;
@@ -54,8 +56,9 @@ namespace SimpleSlide
         public Boolean MediaListLoaded { get; set; }
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? NextImageTimer { get; set; } = null;
-        public Image[] ImagePane = new Image[2];
-        public Storyboard[] ImageFadeInStoryBoard = new Storyboard[2];
+        public Image[] ImagePane { get; set; } = new Image[2];
+        public Storyboard[] ImageFadeStoryBoard { get; set; } = new Storyboard[2];
+        public DoubleAnimation[] ImageFadeAnimation { get; set; } = new DoubleAnimation[2];
         public ProgressRing? WorkingThing { get; set; }
         private Boolean PlayPrevious { get; set; } = false;
 
@@ -92,7 +95,7 @@ namespace SimpleSlide
         public async Task Play()
         {
             // Check if there is any persistant state available. If so, start the player -> this
-            // has the effect of automatically playing starting from where it left off in previous run.
+            // has the effect of automatic playing starting from where it left off in previous run.
             if (await MediaList.DeserializeState())
             {
                 MediaListLoaded = true;
@@ -200,6 +203,8 @@ namespace SimpleSlide
             );
         }
 
+        [RequiresUnreferencedCode("Calls SimpleSlide.Player.NextImageHandler(ThreadPoolTimer)")]
+        [RequiresDynamicCode("Calls SimpleSlide.Player.NextImageHandler(ThreadPoolTimer)")]
         private void ContinuePlaying()
         {
             CurrentPlayerState = PlayerState.Playing;
@@ -278,19 +283,21 @@ namespace SimpleSlide
         }
 
         private int FadeInImageNum { get; set; } = 0;
+
+        [MethodImpl(MethodImplOptions.NoOptimization)]
         private async Task ShowImage(StorageFile? sF)
         {
             if (null == sF)
                 return;
 
-            //Debug.WriteLine("ShowImage: Enter");
-
             // Select image element and storyboard, moving back and forth between the two.
             Image thisImage = ImagePane[FadeInImageNum];
-            Storyboard thisStoryboard = ImageFadeInStoryBoard[FadeInImageNum];
+            Storyboard thisStoryboard = ImageFadeStoryBoard[FadeInImageNum];
+            DoubleAnimation thisAnimation = ImageFadeAnimation[FadeInImageNum];
             FadeInImageNum = (0 == FadeInImageNum) ? 1 : 0;
             Image otherImage = ImagePane[FadeInImageNum]; // This'll be the currently displayed image
-            Storyboard otherStoryboard = ImageFadeInStoryBoard[FadeInImageNum];
+            Storyboard otherStoryboard = ImageFadeStoryBoard[FadeInImageNum];
+            DoubleAnimation otherAnimation = ImageFadeAnimation[FadeInImageNum]; ;
 
             // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
             // via a lambda expression, to that thread.
@@ -307,20 +314,27 @@ namespace SimpleSlide
                     bitmapImage.DecodePixelWidth = (int)thisImage.Width; //match the target Image.Width, not shown
                     bitmapImage.ImageOpened += (s, e) =>
                     {
-                        // For making new image appear
-                        var thisDoubleAnimation = (DoubleAnimation)thisStoryboard.Children[0];
-                        thisDoubleAnimation.Duration = new Duration(TimeSpan.FromSeconds(1));
-                        thisDoubleAnimation.From = 0D;
-                        thisDoubleAnimation.To = 1D;
+                        try
+                        {
+                            // For making new image appear
+                            //var thisDoubleAnimation = thisStoryboard.Children[0] as DoubleAnimation;
+                            thisAnimation?.Duration = new Duration(TimeSpan.FromSeconds(1));
+                            thisAnimation?.From = 0D;
+                            thisAnimation?.To = 1D;
 
-                        // For making existig image disappear
-                        var otherDoubleAnimation = (DoubleAnimation)otherStoryboard.Children[0];
-                        otherDoubleAnimation.Duration = new Duration(TimeSpan.FromSeconds(0));
-                        otherDoubleAnimation.From = 1D;
-                        otherDoubleAnimation.To = 0D;
+                            // For making existig image disappear
+                            //var otherDoubleAnimation = otherStoryboard.Children[0] as DoubleAnimation;
+                            otherAnimation?.Duration = new Duration(TimeSpan.FromSeconds(0));
+                            otherAnimation?.From = 1D;
+                            otherAnimation?.To = 0D;
 
-                        otherStoryboard.Begin();
-                        thisStoryboard.Begin();
+                            otherStoryboard.Begin();
+                            thisStoryboard.Begin();
+                        }
+                        catch (Exception ex)
+                        {
+                            String mStr = ex.Message;
+                        }
                     };
                     IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read);
                     await bitmapImage.SetSourceAsync(fileStream);

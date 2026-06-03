@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 <!--
 Source - https://stackoverflow.com/a/78190338
 Posted by Neil Okikiolu
@@ -31,17 +31,33 @@ Retrieved 2026-04-18, License - CC BY-SA 4.0
     <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
     <PackageCertificateThumbprint>BDECF4F827B7B82F4C2819B99A746A00044C1BF5</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
-    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <AppxAutoIncrementPackageRevision>False</AppxAutoIncrementPackageRevision>
     <GenerateTestArtifacts>False</GenerateTestArtifacts>
     <AppxBundle>Always</AppxBundle>
     <AppxBundlePlatforms>x86|x64</AppxBundlePlatforms>
     <AppInstallerUri>C:\Users\Robert\source\repos\SimpleSlide</AppInstallerUri>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+    <Title>SimpleSlide</Title>
+    <IncludeSymbols>False</IncludeSymbols>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x86'">
     <LayoutDir>C:\Users\Robert\source\repos\SimpleSlide\SimpleSlide\bin\x64\Debug\net10.0-windows10.0.26100.0\win-x64</LayoutDir>
   </PropertyGroup>
+  <!--
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <PublishTrimmed>true4</PublishTrimmed>
+  </PropertyGroup>
+  -->
+  <!-- Getleman on live.com suggested these as way to avoid a crash that seems to be related to JSON seriaization... -->
+<!--
+  <ItemGroup>
+    <TrimmerRootAssembly Include="System.Runtime.Serialization" />
+    <TrimmerRootAssembly Include="System.Runtime.Serialization.Json" />
+  </ItemGroup>
+  -->
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Uwp.Animations" Version="8.2.251219" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools.MSIX" Version="1.7.251221100">

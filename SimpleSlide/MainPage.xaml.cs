@@ -60,6 +60,9 @@ namespace SimpleSlide
         {
             InitializeComponent();
 
+            // Subscribe to the UnhandledException event
+            //this.DispatcherUnhandledException += App_UnhandledException;
+
             FNameProgress = new Progress<String>();
 
             // If a DelayBetweenImges setting was saved, go with that.
@@ -71,7 +74,8 @@ namespace SimpleSlide
             Player = new(PickedFolderTokenName, FNameProgress)
             {
                 ImagePane = [Image0, Image1], // The XAML image elements
-                ImageFadeInStoryBoard = [Image0FadeInStoryboard, Image1FadeInStoryboard],
+                ImageFadeStoryBoard = [Image0FadeStoryboard, Image1FadeStoryboard],
+                ImageFadeAnimation = [Image0Animation, Image1Animation],
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex],
                 WorkingThing = WorkingThing // ProgressRing
             };
@@ -243,8 +247,6 @@ namespace SimpleSlide
         private async void SelectFolder()
         {
             SelectingFolder = true;
-            //Message();
-
             // Send Stop command to player
             Player.CommandQueue.Enqueue(new PlayerCommand()
             {

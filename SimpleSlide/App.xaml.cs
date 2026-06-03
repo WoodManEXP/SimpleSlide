@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.UI.Xaml;
@@ -20,7 +22,36 @@ namespace SimpleSlide
         {
             InitializeComponent();
 
+            this.UnhandledException += App_UnhandledException;
+
             Suspending += OnSuspending;
+        }
+
+        /// <summary>
+        /// Visual Studio: Right-click your Project → Properties → Build tab → Uncheck "Optimize code".
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        //[MethodImpl(MethodImplOptions.NoOptimization)]
+        private void App_UnhandledException(object sender, Windows.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            /*
+            String mStr = e.Message;
+            Exception ex = e.Exception;
+
+            // Retrieve the stack trace string
+            String stackTrace = ex.StackTrace;
+
+            Debug.WriteLine(mStr);
+            Debug.WriteLine(ex);
+            Debug.WriteLine(stackTrace);
+
+            GC.KeepAlive(mStr);
+            GC.KeepAlive(ex);
+            GC.KeepAlive(stackTrace);
+            */
+            e.Handled = false;
+            //throw new NotImplementedException();
         }
 
         /// <inheritdoc/>

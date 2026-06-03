@@ -7,10 +7,8 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading.Tasks;
-using Windows.Services.Maps;
 using Windows.Storage;
 using Windows.Storage.Search;
-using Windows.UI.Xaml.Controls;
 
 namespace SimpleSlide
 {
@@ -40,7 +38,7 @@ namespace SimpleSlide
     [DataContract]
     internal class FolderStateStack
     {
-        [DataMember] public Stack<FolderState> FoldersStack { get; set; }
+        [DataMember] public Stack<FolderState>? FoldersStack { get; set; }
         public FolderStateStack()
         {
             FoldersStack = new();
@@ -65,33 +63,40 @@ namespace SimpleSlide
         /// When this is entered a FoldersStack of FolderState items has been created by the Serializer.
         /// However, Serializer cannot build FileList and FolderList members, so they are built here.
         /// </remarks>
-        public async Task<Boolean> CompleteTheRead(QueryOptions QueryOptions)
+        public async Task<Boolean> FinishDeserialization(QueryOptions QueryOptions)
         {
             Boolean allOK = false;
-            foreach (var folderState in FoldersStack)
+
+            if (null == FoldersStack) // Just to be sure
             {
-                allOK = false;
-                try
-                {
-                    folderState.ThisStorageFolder = await StorageFolder.GetFolderFromPathAsync(folderState.Path);
-                    var query = folderState.ThisStorageFolder.CreateFileQueryWithOptions(QueryOptions);
-
-                    // Retrieve list of any media files
-                    folderState.FileList = await query.GetFilesAsync();
-
-                    // Get list of all the folders in this folder.
-                    folderState.FolderList = await folderState.ThisStorageFolder.GetFoldersAsync();
-                    allOK = true;
-                }
-                catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
-                {
-                    Debug.WriteLine("FolderStateStack:CompleteTheRead exception " + e.Message);
-                    allOK = false;
-                }
-
-                if (!allOK)
-                    break;
+                FoldersStack = new();
+                allOK = true;
             }
+            else
+                foreach (var folderState in FoldersStack)
+                {
+                    allOK = false;
+                    try
+                    {
+                        folderState.ThisStorageFolder = await StorageFolder.GetFolderFromPathAsync(folderState.Path);
+                        var query = folderState.ThisStorageFolder.CreateFileQueryWithOptions(QueryOptions);
+
+                        // Retrieve list of any media files
+                        folderState.FileList = await query.GetFilesAsync();
+
+                        // Get list of all the folders in this folder.
+                        folderState.FolderList = await folderState.ThisStorageFolder.GetFoldersAsync();
+                        allOK = true;
+                    }
+                    catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
+                    {
+                        Debug.WriteLine("FolderStateStack:CompleteTheRead exception " + e.Message);
+                        allOK = false;
+                    }
+
+                    if (!allOK)
+                        break;
+                }
 
             if (!allOK)                 // Something during deserialization has failed. Clear FolderStack
                 FoldersStack.Clear();
@@ -123,13 +128,13 @@ namespace SimpleSlide
         {
             FNameProgress = fNameProgress;
 
-            // There is a bug in QueryOptios class that causes a cast exception when a List is passed
+            // Appears to be an issue in QueryOptios class causing a cast exception when a List is passed
             // for the fie type filter list. There is mention of it in various forums. Only work-around
             // found is what is impemented here...
             // var fileTypeFilterList = new List<String>() { ".jpeg", ".jpg", ".png", ".bmp", ".gif", ".tiff", ".ico", ".svg" };
             //var QueryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
             FileTypeFilterList = SimpleSlide.Strings.MediaTypes.Split(',').ToList();
-            QueryOptions = new ();
+            QueryOptions = new();
             QueryOptionsFileCout = new()
             {
                 FolderDepth = FolderDepth.Shallow, // Just this folder
@@ -473,7 +478,7 @@ namespace SimpleSlide
 
                 // This can fail if the last run's files are no longer available.
                 // Eg. a USB device no loner connecteed or a folder renamed.
-                return (Ready = await FolderStateStack.CompleteTheRead(QueryOptions));
+                return (Ready = await FolderStateStack.FinishDeserialization(QueryOptions));
             }
             catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
             {

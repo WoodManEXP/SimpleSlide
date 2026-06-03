@@ -11,6 +11,12 @@
       "remoteDebugEnabled": true,
       "remoteDebugMachine": "10.0.0.92",
       "authenticationMode": "Universal"
+    },
+    "SimpleSlide Dell Tablet": {
+      "commandName": "MsixPackage",
+      "remoteDebugEnabled": true,
+      "remoteDebugMachine": "RobertsDellTablet",
+      "authenticationMode": "Windows"
     }
   }
 }
