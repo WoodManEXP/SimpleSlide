@@ -19,12 +19,7 @@ namespace SimpleSlide
     /// </summary>
     public sealed partial class MainPage : Page
     {
-        const String PauseStr = "Pause";
-        readonly String PauseTT = SimpleSlide.Strings.PauseTT;
-        readonly String ContiueStr = SimpleSlide.Strings.ContiueStr;
-        readonly String ContinueTT = SimpleSlide.Strings.ContinueTT;
-
-        private readonly String? PickedFolderTokenName = "PickedFolderToken";
+        private String PickedFolderTokenName { get; } = "PickedFolderToken";
 
         public Progress<String> FNameProgress;
         private Player Player;
@@ -237,8 +232,8 @@ namespace SimpleSlide
             // here.
             // This is called frequetly by Player, so as good a place as any to make the check...
             if (Player.PlayerState.Playing == Player.CurrentPlayerState)
-                if ((String)ContinuePauseBtn.Content != PauseStr)
-                    ContinuePauseBtn.Content = PauseStr;
+                if ((String)ContinuePauseBtn.Content != SimpleSlide.Strings.PauseStr)
+                    ContinuePauseBtn.Content = SimpleSlide.Strings.PauseStr;
         }
         private async void SelectFolderBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
@@ -268,9 +263,9 @@ namespace SimpleSlide
                 StatusTextBlock.Text = folder.Path;
 
                 // Change to Pause
-                ContinuePauseBtn.Content = PauseStr;
+                ContinuePauseBtn.Content = SimpleSlide.Strings.PauseStr;
                 ContinuePauseBtn.IsEnabled = true;
-                SetToolTip(ContinuePauseBtn, PauseTT);
+                SetToolTip(ContinuePauseBtn, SimpleSlide.Strings.PauseTT);
 
                 FNameChanged(null, SimpleSlide.Strings.Starting);
 
@@ -293,15 +288,12 @@ namespace SimpleSlide
         private void ContinuePauseBtn_Click(object sender, Windows.UI.Xaml.RoutedEventArgs e)
         {
             if (Player.MediaListLoaded)
-                switch (ContinuePauseBtn.Content)
-                {
-                    case PauseStr:
-                        PauseOrContiue(PauseOrContinue.Pause);
-                        break;
-                    default: // Continue
-                        PauseOrContiue(PauseOrContinue.Continue);
-                        break;
-                }
+            {
+                if (0 == String.Compare(SimpleSlide.Strings.PauseStr, (String)ContinuePauseBtn.Content))
+                    PauseOrContiue(PauseOrContinue.Pause);
+                else
+                    PauseOrContiue(PauseOrContinue.Continue);
+            }
         }
 
         /// <summary>
@@ -322,20 +314,20 @@ namespace SimpleSlide
 
             if (PauseOrContinue.Pause == what)
             {
-                ContinuePauseBtn.Content = ContiueStr;
-                SetToolTip(ContinuePauseBtn, ContinueTT);
+                ContinuePauseBtn.Content = SimpleSlide.Strings.ContiueStr; // ContiueStr;
+                SetToolTip(ContinuePauseBtn, SimpleSlide.Strings.ContinueTT);
 
                 // Send Pause command to player
                 Player.CommandQueue.Enqueue(new PlayerCommand()
                 {
                     Command = PlayerCommand.PlayerCommands.Pause
                 });
-                StatusTextBlock.Text = "Paused...";
+                StatusTextBlock.Text = SimpleSlide.Strings.Paused;
             }
             else // Continue
             {
-                ContinuePauseBtn.Content = PauseStr;
-                SetToolTip(ContinuePauseBtn, PauseTT);
+                ContinuePauseBtn.Content = SimpleSlide.Strings.Paused;
+                SetToolTip(ContinuePauseBtn, SimpleSlide.Strings.PauseTT);
 
                 // Send Cotinue command to player
                 Player.CommandQueue.Enqueue(new PlayerCommand()

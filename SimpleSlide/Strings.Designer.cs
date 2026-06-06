@@ -151,6 +151,15 @@ namespace SimpleSlide {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Paused....
+        /// </summary>
+        internal static string Paused {
+            get {
+                return ResourceManager.GetString("Paused", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Pause.
         /// </summary>
         internal static string PauseStr {

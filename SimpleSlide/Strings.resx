@@ -147,6 +147,9 @@
   <data name="NoMediaTitle" xml:space="preserve">
     <value>No media</value>
   </data>
+  <data name="Paused" xml:space="preserve">
+    <value>Paused...</value>
+  </data>
   <data name="PauseStr" xml:space="preserve">
     <value>Pause</value>
   </data>
