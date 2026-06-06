@@ -60,6 +60,13 @@
                         <KeyboardAccelerator Key="P"/>
                     </Button.KeyboardAccelerators>
                 </Button>
+                <Button x:Name="HelpBtn" Content="Help" Margin="3,3,3,3"
+                        Click="HelpBtn_Click" ToolTipService.ToolTip="Help"
+                        BorderBrush="White" Foreground="White">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="H"/>
+                    </Button.KeyboardAccelerators>
+                </Button>
             </StackPanel>
             <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Grid.Row="0" Padding="20,5,5,5" VerticalAlignment="Center" Text="FName" Foreground="Black" />
             <StackPanel x:Name="PlaySpeedStackPanel" Grid.Column="2" Grid.Row="0" Margin="15,0,0,0" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed">

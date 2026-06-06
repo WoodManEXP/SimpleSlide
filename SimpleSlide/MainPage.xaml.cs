@@ -204,19 +204,31 @@ namespace SimpleSlide
         /// <summary>
         /// Display help whe o XBox
         /// </summary>
-        private Boolean XBoxHelpOpen = false;
+        private Boolean HelpOpen = false;
         private async void HelpXBox()
         {
-            if (XBoxHelpOpen)
+            if (HelpOpen)
                 return;
-            XBoxHelpOpen = true;
-            XBoxHelp xBoxHelp = new XBoxHelp();
+            HelpOpen = true;
+            var xBoxHelp = new XBoxHelp();
             PauseOrContiue(PauseOrContinue.Pause); // Pause slides
             await xBoxHelp.ShowAsync();
-            XBoxHelpOpen = false;
+            HelpOpen = false;
             PauseOrContiue(PauseOrContinue.Continue); // Contiue slides
         }
         #endregion XBoxController
+
+        private async void Help()
+        {
+            if (HelpOpen)
+                return;
+            HelpOpen = true;
+            var help = new Help();
+            PauseOrContiue(PauseOrContinue.Pause); // Pause slides
+            await help.ShowAsync();
+            HelpOpen = false;
+            PauseOrContiue(PauseOrContinue.Continue); // Contiue slides
+        }
 
         /// <summary>
         /// Receives message to set text string in the FNameTextBlock
@@ -478,6 +490,11 @@ namespace SimpleSlide
         private void DoubleAnimation_Completed(object sender, object e)
         {
 
+        }
+
+        private void HelpBtn_Click(object sender, RoutedEventArgs e)
+        {
+            Help();
         }
     }
 }

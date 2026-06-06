@@ -4,9 +4,9 @@
 
 namespace SimpleSlide
 {
-    public sealed partial class XBoxHelp : ContentDialog
+    public sealed partial class Help : ContentDialog
     {
-        public XBoxHelp()
+        public Help()
         {
             this.InitializeComponent();
         }
