@@ -407,7 +407,7 @@ namespace SimpleSlide
             PlaySpeedBarTimer = ThreadPoolTimer.CreateTimer(PlaySpeedBarTimerHandler,
                                         TimeSpan.FromMilliseconds(1000D));
 
-            if (ChangeSpeed.Slower == change)
+            if (ChangeSpeed.Faster == change)
                 CurrSpeedIndex = Math.Max(0, CurrSpeedIndex - 1);
             else
                 CurrSpeedIndex = Math.Min(MaxSpeed, CurrSpeedIndex + 1);
