@@ -169,6 +169,15 @@ namespace SimpleSlide {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to SimpleSlide.json.
+        /// </summary>
+        internal static string PersistentFname {
+            get {
+                return ResourceManager.GetString("PersistentFname", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Select a folder to get started.
         /// </summary>
         internal static string SelectFolder {

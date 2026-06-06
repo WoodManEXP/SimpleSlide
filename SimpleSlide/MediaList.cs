@@ -1,111 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Search;
 
 namespace SimpleSlide
 {
-    [DataContract]
-    internal class FolderState
-    {
-        /// <summary>
-        /// One of these is pushed on the Stack, for each folder being traversed
-        /// </summary>
-        /// 
-        [DataMember] public int LastFileNum { get; set; }
-        [DataMember] public int LastFolderNum { get; set; }
-        [DataMember] public String? Path { get; set; }                  // Full path to this folder
-        public IReadOnlyList<StorageFile> FileList { get; set; }        // Files in the folder
-        public IReadOnlyList<StorageFolder> FolderList { get; set; }    // Folders in te folder
-        public StorageFolder? ThisStorageFolder { get; set; }           // This folder
-        public FolderState(StorageFolder storageFolder, IReadOnlyList<StorageFile> fileList, IReadOnlyList<StorageFolder> folderList)
-        {
-            ThisStorageFolder = storageFolder;
-            Path = storageFolder.Path; // Hang on to this for deserialization reconstruction
-            FileList = fileList;
-            FolderList = folderList;
-            LastFileNum = LastFolderNum = -1;
-        }
-    }
-
-    [DataContract]
-    internal class FolderStateStack
-    {
-        [DataMember] public Stack<FolderState>? FoldersStack { get; set; }
-        public FolderStateStack()
-        {
-            FoldersStack = new();
-        }
-
-        /// <summary>
-        /// Back to initial state
-        /// </summary>
-        public void Clear()
-        {
-            FoldersStack.Clear();
-        }
-
-        /// <summary>
-        /// Finish read from persistant store operation.
-        /// Construct the FileList and FolderList for each FolderState on the stack.
-        /// </summary>
-        /// <returns></returns>
-        /// <remarks>
-        /// It'd be more ituitive to have accomplished this in the FolderState parameterless constructor 
-        /// the deserializier would call. But constructors are unable to utilize async methods...
-        /// When this is entered a FoldersStack of FolderState items has been created by the Serializer.
-        /// However, Serializer cannot build FileList and FolderList members, so they are built here.
-        /// </remarks>
-        public async Task<Boolean> FinishDeserialization(QueryOptions QueryOptions)
-        {
-            Boolean allOK = false;
-
-            if (null == FoldersStack) // Just to be sure
-            {
-                FoldersStack = new();
-                allOK = true;
-            }
-            else
-                foreach (var folderState in FoldersStack)
-                {
-                    allOK = false;
-                    try
-                    {
-                        folderState.ThisStorageFolder = await StorageFolder.GetFolderFromPathAsync(folderState.Path);
-                        var query = folderState.ThisStorageFolder.CreateFileQueryWithOptions(QueryOptions);
-
-                        // Retrieve list of any media files
-                        folderState.FileList = await query.GetFilesAsync();
-
-                        // Get list of all the folders in this folder.
-                        folderState.FolderList = await folderState.ThisStorageFolder.GetFoldersAsync();
-                        allOK = true;
-                    }
-                    catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
-                    {
-                        Debug.WriteLine("FolderStateStack:CompleteTheRead exception " + e.Message);
-                        allOK = false;
-                    }
-
-                    if (!allOK)
-                        break;
-                }
-
-            if (!allOK)                 // Something during deserialization has failed. Clear FolderStack
-                FoldersStack.Clear();
-
-            return allOK;
-        }
-    }
-
-
     /// <summary>
     /// Manages traversal of the media to be played
     /// </summary>
@@ -119,11 +20,9 @@ namespace SimpleSlide
         private QueryOptions QueryOptions { get; set; }
         private QueryOptions QueryOptionsFileCout { get; set; }
         private QueryOptions QueryOptionsFolderCout { get; set; }
-        private DataContractJsonSerializer DataContractJsonSerializer { get; set; }
+        //private DataContractJsonSerializer DataContractJsonSerializer { get; set; }
         private Boolean EncounteredA_MediaFile { get; set; } = false;
 
-        [RequiresUnreferencedCode("Calls System.Runtime.Serialization.Json.DataContractJsonSerializer.DataContractJsonSerializer(Type)")]
-        [UnconditionalSuppressMessage("AOT", "IL3050:Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.", Justification = "<Pending>")]
         public MediaList(Progress<String> fNameProgress)
         {
             FNameProgress = fNameProgress;
@@ -150,8 +49,6 @@ namespace SimpleSlide
                 QueryOptions.FileTypeFilter.Add(fileType);
                 QueryOptionsFileCout.FileTypeFilter.Add(fileType);
             }
-
-            DataContractJsonSerializer = new(typeof(FolderStateStack)/*, typeList*/);
         }
 
         /// <summary>
@@ -165,12 +62,12 @@ namespace SimpleSlide
 
         public String CurrentFolderName(Boolean prependNumber = false)
         {
-            if (0 == FolderStateStack.FoldersStack.Count)
+            if (0 == FolderStateStack.FolderStack.Count)
                 return new("");
 
             String aStr;
 
-            FolderState fS = FolderStateStack.FoldersStack.Peek();
+            FolderState fS = FolderStateStack.FolderStack.Peek();
             if (null != fS)
             {
                 StorageFolder? sF = fS.ThisStorageFolder;
@@ -194,8 +91,6 @@ namespace SimpleSlide
         /// Get next media from list
         /// </summary>
         /// <returns></returns>
-        [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.WritePersistentState()")]
-        [RequiresDynamicCode("Calls SimpleSlide.MediaList.WritePersistentState()")]
         public async Task<StorageFile?> GetNextMedia()
         {
             StorageFile? sF;
@@ -203,7 +98,7 @@ namespace SimpleSlide
             {
                 sF = await StackGetNext();
 
-                await SerializeState(); // place in folder hierachy has changed, remember.
+                await FolderStateStack.SerializeState(); // place in folder hierachy has changed, remember.
 
                 if (null != sF) // Have encountered at least one media file 
                     EncounteredA_MediaFile = true;
@@ -219,13 +114,11 @@ namespace SimpleSlide
         /// Get previous media from list
         /// </summary>
         /// <returns></returns>
-        [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.SerializeState()")]
-        [RequiresDynamicCode("Calls SimpleSlide.MediaList.SerializeState()")]
         public async Task<StorageFile?> GetPreviousMedia()
         {
             StorageFile? sF = await StackGetPrevious();
 
-            await SerializeState(); // place in folder hierachy has changed, remember.
+            await FolderStateStack.SerializeState(); // place in folder hierachy has changed, remember.
 
             if (null != sF) // Have encountered at least one media file 
                 EncounteredA_MediaFile = true;
@@ -243,10 +136,10 @@ namespace SimpleSlide
         /// </remarks>
         private async Task<StorageFile?> StackGetNext()
         {
-            if (0 == FolderStateStack.FoldersStack.Count) // JIC
+            if (0 == FolderStateStack.FolderStack.Count) // JIC
                 return null;
 
-            FolderState? fS = FolderStateStack.FoldersStack.Peek();
+            FolderState? fS = FolderStateStack.FolderStack.Peek();
 
             while (true)
             {
@@ -258,7 +151,7 @@ namespace SimpleSlide
                 // Have all files in folder hierarchy been processed?
                 // This is checking for having reached the end of the top-most folder. Having
                 // done this means the op folder + all elow it have been traversed.
-                if (FolderStateStack.FoldersStack.Count == 1)
+                if (FolderStateStack.FolderStack.Count == 1)
                     if (1 + fS.LastFileNum >= fS.FileList.Count || 0 == fS.FileList.Count)
                         if (1 + fS.LastFolderNum >= fS.FolderList.Count | 0 == fS.FolderList.Count)
                         {
@@ -279,13 +172,13 @@ namespace SimpleSlide
                 {
                     // Onto next folder
                     await PrepForFolder(fS.FolderList[++fS.LastFolderNum]);
-                    fS = FolderStateStack.FoldersStack.Peek();
+                    fS = FolderStateStack.FolderStack.Peek();
                 }
                 else
                 {
                     // No more folders, pop the stack
-                    FolderStateStack.FoldersStack.Pop();
-                    fS = (FolderStateStack.FoldersStack.Count > 0) ? FolderStateStack.FoldersStack.Peek() : null;
+                    FolderStateStack.FolderStack.Pop();
+                    fS = (FolderStateStack.FolderStack.Count > 0) ? FolderStateStack.FolderStack.Peek() : null;
                 }
             }
         }
@@ -296,13 +189,13 @@ namespace SimpleSlide
         /// <returns></returns>
         private async Task<StorageFile?> StackGetPrevious()
         {
-            if (0 == FolderStateStack.FoldersStack.Count)  // JIC
+            if (0 == FolderStateStack.FolderStack.Count)  // JIC
                 return null;
 
-            FolderState? fS = FolderStateStack.FoldersStack.Peek();
+            FolderState? fS = FolderStateStack.FolderStack.Peek();
 
             // Boundary case: at the beginning?
-            if (1 == FolderStateStack.FoldersStack.Count && fS.LastFileNum <= 0)
+            if (1 == FolderStateStack.FolderStack.Count && fS.LastFileNum <= 0)
                 return null;
 
             while (true)
@@ -319,13 +212,13 @@ namespace SimpleSlide
                 {
                     // Onto next folder
                     await PrepForFolder(fS.FolderList[fS.LastFolderNum]);
-                    fS = FolderStateStack.FoldersStack.Peek();
+                    fS = FolderStateStack.FolderStack.Peek();
                 }
                 else
                 {
                     // No more folders, pop the stack
-                    FolderStateStack.FoldersStack.Pop();
-                    fS = (FolderStateStack.FoldersStack.Count > 0) ? FolderStateStack.FoldersStack.Peek() : null;
+                    FolderStateStack.FolderStack.Pop();
+                    fS = (FolderStateStack.FolderStack.Count > 0) ? FolderStateStack.FolderStack.Peek() : null;
                     if (null != fS)
                         fS.LastFolderNum = -1;  // Popping back to a parent folder. Prep to possibly start again
                                                 // with its first child folder. 
@@ -338,6 +231,9 @@ namespace SimpleSlide
         /// </summary>
         /// <param name="storageFolder"></param>
         /// <returns></returns>
+        /// <remarks>
+        /// File system on XBox seems particularly slow at this...
+        /// </remarks>
         private async Task<uint> FilesThisFolder(Windows.Storage.StorageFolder? sF)
         {
             var query = sF.CreateFileQueryWithOptions(QueryOptionsFileCout);
@@ -350,6 +246,9 @@ namespace SimpleSlide
         /// </summary>
         /// <param name="storageFolder"></param>
         /// <returns></returns>
+        /// <remarks>
+        /// File system on XBox seems particularly slow at this...
+        /// </remarks>
         private async Task<uint> FoldersThisFolder(Windows.Storage.StorageFolder? sF)
         {
             var query = sF.CreateFolderQueryWithOptions(QueryOptionsFolderCout);
@@ -368,10 +267,7 @@ namespace SimpleSlide
         /// These types
         /// .jpeg, .jpg, .png, .bmp, gif, .tiff, .ico, .svg
         /// </remarks>
-        // Unsure what these mean, but C# compiler recommends...
-        //[RequiresDynamicCode("Calls SimpleSlide.MediaList.PersistState()")]
-        //[RequiresUnreferencedCode("Calls SimpleSlide.MediaList.PersistState()")]
-        public async Task PrepForFolder(Windows.Storage.StorageFolder? sF)
+        public async Task PrepForFolder(Windows.Storage.StorageFolder sF)
         {
             Boolean onXbox = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox";
 
@@ -396,95 +292,18 @@ namespace SimpleSlide
 
             // Make a FolderState to push onto FoldersStack
             FolderState folderState = new(sF, fileList, folderList);
-            FolderStateStack.FoldersStack.Push(folderState);
+            FolderStateStack.FolderStack.Push(folderState);
 
             Ready = true;
         }
 
         /// <summary>
-        /// Persist current state to a file, via JSON serialization
+        /// Attemot to brig in the saved state.
         /// </summary>
         /// <returns></returns>
-        /// <remarks>
-        /// This operation enables the system to contiue where it left off from the previous run.
-        /// </remarks>
-        private Boolean PersistingState { get; set; } = false;
-        private MemoryStream PersistMemoryStream { get; set; } = new();
-
-        private readonly String PersistentFname = new("SimpleSlide.json");
-
-        // Unsure what these mean, but C# compiler recommends...
-        [RequiresUnreferencedCode("Calls System.Runtime.Serialization.Json.DataContractJsonSerializer.DataContractJsonSerializer(Type)")]
-        [RequiresDynamicCode("Calls System.Runtime.Serialization.Json.DataContractJsonSerializer.DataContractJsonSerializer(Type)")]
-        private async Task SerializeState()
-        {
-
-            // Do not want to re-enter this if it might stil be running from a previous invocation.
-            if (PersistingState)
-                return;
-            PersistingState = true;
-
-            var storageFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
-            var file = await storageFolder.CreateFileAsync(PersistentFname,
-                CreationCollisionOption.ReplaceExisting);
-
-            try
-            {
-                PersistMemoryStream.Position = 0; // Reset position to start
-                PersistMemoryStream.SetLength(0); // Clear existing content/length
-                DataContractJsonSerializer.WriteObject(PersistMemoryStream, FolderStateStack);
-
-                var fileStream = await file.OpenStreamForWriteAsync();
-
-                // Asynchronously copy data from MemoryStream to the StorageFile stream
-                PersistMemoryStream.Position = 0; // Reset position to the start for the write
-                await PersistMemoryStream.CopyToAsync(fileStream);
-                // Ensure all data is written to the disk
-                await fileStream.FlushAsync();
-                fileStream.Close();
-            }
-            catch (Exception e)
-            {
-                Debug.WriteLine("WritePersistentState exception " + e.Message);
-            }
-            PersistingState = false;
-        }
-
-        /// <summary>
-        /// Check for availability of persistent state, if available use it to
-        /// instantiate the FolderStateStack. 
-        /// </summary>
-        /// <returns>true is success, false otherwise/returns>
-        /// <remarks>
-        /// It'd be desirable to calll this from the MediaList class constructor, but making async
-        /// calls from a constructor is difficult, at best.
-        /// https://hackernoon.com/asynchronous-initialization-in-c-overcoming-constructor-limitations
-        /// </remarks>
-        // Unsure what these mean, but C# compiler recommends...
-        [RequiresUnreferencedCode("Calls System.Runtime.Serialization.Json.DataContractJsonSerializer.DataContractJsonSerializer(Type)")]
-        [RequiresDynamicCode("Calls System.Runtime.Serialization.Json.DataContractJsonSerializer.DataContractJsonSerializer(Type)")]
         public async Task<Boolean> DeserializeState()
         {
-            try
-            {
-                // Path = "C:\Users\Robert\AppData\Local\Packages\WoodManEXP.SimpleSlide_8nk81dv7p0dfm\LocalState"
-                var storageFolder = Windows.Storage.ApplicationData.Current.LocalFolder;
-                var file = await storageFolder.GetFileAsync(PersistentFname);
-
-                var fileStream = await file.OpenStreamForReadAsync();
-                fileStream.Position = 0;
-
-                FolderStateStack = (FolderStateStack)DataContractJsonSerializer.ReadObject(fileStream);
-
-                // This can fail if the last run's files are no longer available.
-                // Eg. a USB device no loner connecteed or a folder renamed.
-                return (Ready = await FolderStateStack.FinishDeserialization(QueryOptions));
-            }
-            catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
-            {
-                Debug.WriteLine("ReadPersistentState exception " + e.Message);
-            }
-            return (Ready = false);
+            return (Ready = await FolderStateStack.DeserializeState(QueryOptions));
         }
     }
 }

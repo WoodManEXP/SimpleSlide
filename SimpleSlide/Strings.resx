@@ -153,6 +153,9 @@
   <data name="PauseTT" xml:space="preserve">
     <value>Pause slide show (P)</value>
   </data>
+  <data name="PersistentFname" xml:space="preserve">
+    <value>SimpleSlide.json</value>
+  </data>
   <data name="SelectFolder" xml:space="preserve">
     <value>Select a folder to get started</value>
   </data>
