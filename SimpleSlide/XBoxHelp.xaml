@@ -10,7 +10,11 @@
     PrimaryButtonText="OK"
     PrimaryButtonClick="ContentDialog_PrimaryButtonClick"
 >
+    <ContentDialog.Resources>
+        <x:Double x:Key="ContentDialogMaxWidth">800</x:Double>
+        <x:Double x:Key="ContentDialogMaxHeight">600</x:Double>
+    </ContentDialog.Resources>
     <Grid>
-        <Image Source="Assets/XBox Controller.png"/>
+        <Image Source="Assets/XBox help.png"/>
     </Grid>
 </ContentDialog>
