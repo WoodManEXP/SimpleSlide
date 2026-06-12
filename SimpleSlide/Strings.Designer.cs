@@ -106,6 +106,24 @@ namespace SimpleSlide {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Restarting from last time....
+        /// </summary>
+        internal static string FromLastTime {
+            get {
+                return ResourceManager.GetString("FromLastTime", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restarting from last time. These things can be slow on XBox. Hang on....
+        /// </summary>
+        internal static string FromLastTimeXBox {
+            get {
+                return ResourceManager.GetString("FromLastTimeXBox", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to ####.
         /// </summary>
         internal static string HashSigns {

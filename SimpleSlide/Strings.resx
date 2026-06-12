@@ -132,6 +132,12 @@
   <data name="FolderPrepXBox" xml:space="preserve">
     <value>_N files and folders for next folder. XBox is slow with these things. Hang on...</value>
   </data>
+  <data name="FromLastTime" xml:space="preserve">
+    <value>Restarting from last time...</value>
+  </data>
+  <data name="FromLastTimeXBox" xml:space="preserve">
+    <value>Restarting from last time. These things can be slow on XBox. Hang on...</value>
+  </data>
   <data name="HashSigns" xml:space="preserve">
     <value>####</value>
   </data>

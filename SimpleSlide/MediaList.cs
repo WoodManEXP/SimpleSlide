@@ -22,16 +22,20 @@ namespace SimpleSlide
         private QueryOptions QueryOptionsFolderCout { get; set; }
         //private DataContractJsonSerializer DataContractJsonSerializer { get; set; }
         private Boolean EncounteredA_MediaFile { get; set; } = false;
+        private Boolean OnXBox { get; set; }
 
         public MediaList(Progress<String> fNameProgress)
         {
             FNameProgress = fNameProgress;
 
-            // Appears to be an issue in QueryOptios class causing a cast exception when a List is passed
+            // Running on XBox ?
+            OnXBox = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox";
+
+            // Appears to be an issue in QueryOptions class causing a cast exception when a List is passed
             // for the fie type filter list. There is mention of it in various forums. Only work-around
             // found is what is impemented here...
             // var fileTypeFilterList = new List<String>() { ".jpeg", ".jpg", ".png", ".bmp", ".gif", ".tiff", ".ico", ".svg" };
-            //var QueryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
+            // var QueryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
             FileTypeFilterList = SimpleSlide.Strings.MediaTypes.Split(',').ToList();
             QueryOptions = new();
             QueryOptionsFileCout = new()
@@ -269,14 +273,12 @@ namespace SimpleSlide
         /// </remarks>
         public async Task PrepForFolder(Windows.Storage.StorageFolder sF)
         {
-            Boolean onXbox = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox";
-
             // XBox has especially slow file system. If a large number of files/folers needs to be
             // gathered for this sF place a Hang on... message in the status area.
-            if (onXbox)
+            if (OnXBox)
             {
-                uint numFiles = await FilesThisFolder(sF);
-                uint numFolders = await FoldersThisFolder(sF);
+                uint numFiles = await FilesThisFolder(sF);      // This is slow on Xbox
+                uint numFolders = await FoldersThisFolder(sF);  // And so is this...
                 uint tN;
                 if ((tN = numFiles + numFolders) > 100)
                     FNameProgress.Report(SimpleSlide.Strings.FolderPrepXBox.Replace("_N", tN.ToString()));
@@ -298,11 +300,17 @@ namespace SimpleSlide
         }
 
         /// <summary>
-        /// Attemot to brig in the saved state.
+        /// Attempt to brig in the saved state.
         /// </summary>
         /// <returns></returns>
         public async Task<Boolean> DeserializeState()
         {
+            // Message that this, perhaps lengthly operation is underway
+            if (OnXBox)
+                FNameProgress.Report(SimpleSlide.Strings.FromLastTimeXBox);
+            else 
+                FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
+
             return (Ready = await FolderStateStack.DeserializeState(QueryOptions));
         }
     }

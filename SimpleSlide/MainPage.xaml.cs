@@ -20,9 +20,8 @@ namespace SimpleSlide
     public sealed partial class MainPage : Page
     {
         private String PickedFolderTokenName { get; } = "PickedFolderToken";
-
-        public Progress<String> FNameProgress;
-        private Player Player;
+        public Progress<String> FNameProgress { get; set; }
+        private Player Player { get; set; }
 
         // XBox controller
         private Gamepad? Controller { get; set; }
@@ -92,6 +91,7 @@ namespace SimpleSlide
         private void ControllerInit()
         {
             ControllerTimer = new DispatcherTimer();
+            // DispatcherTimer.Inerval defaults to {00:00:00}. Perhaps it should be set to something else ??
             ControllerTimer.Tick += ControllerTick;
 
             Gamepad.GamepadAdded += ControllerAdded;
