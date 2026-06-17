@@ -19,20 +19,22 @@ namespace SimpleSlide
         [JsonInclude] public int LastFileNum { get; set; } = -1;
         [JsonInclude] public int LastFolderNum { get; set; } = -1;
         [JsonInclude] public String? Path { get; set; }                             // Full path to this folder
-        [JsonIgnore] public IReadOnlyList<StorageFile>? FileList { get; set; }       // Files in the folder
-        [JsonIgnore] public IReadOnlyList<StorageFolder>? FolderList { get; set; }   // Folders in te folder
-        [JsonIgnore] public StorageFolder? ThisStorageFolder { get; set; }          // This folder
+        //[JsonIgnore] public IReadOnlyList<StorageFile>? FileList { get; set; }       // Files in the folder
+        //[JsonIgnore] public IReadOnlyList<StorageFolder>? FolderList { get; set; }   // Folders in te folder
+        [JsonIgnore] public StorageFolder? StorageFolder { get; set; }          // This folder
+        [JsonIgnore] public int FileCount { get; set; } = 0;
+        [JsonIgnore] public int FolderCount { get; set; } = 0;
 
         public FolderState()
         {
 
         }
-        public FolderState(StorageFolder storageFolder, IReadOnlyList<StorageFile> fileList, IReadOnlyList<StorageFolder> folderList)
+        public FolderState(StorageFolder storageFolder, int numFiles, int numFolders)
         {
-            ThisStorageFolder = storageFolder;
+            StorageFolder = storageFolder;
             Path = storageFolder.Path; // Hang on to this for deserialization reconstruction
-            FileList = fileList;
-            FolderList = folderList;
+            FileCount = numFiles;
+            FolderCount = numFolders;
         }
     }
 
@@ -90,7 +92,7 @@ namespace SimpleSlide
         /// When this is entered a FoldersStack of FolderState items has been created by the Serializer.
         /// However, Serializer cannot build FileList and FolderList members, so they are built here.
         /// </remarks>
-        public async Task<Boolean> FinishDeserialization(QueryOptions QueryOptions)
+        public async Task<Boolean> FinishDeserialization(QueryOptions queryOptions, QueryOptions queryOptionsFolders)
         {
             Boolean allOK = false;
 
@@ -105,14 +107,16 @@ namespace SimpleSlide
                     allOK = false;
                     try
                     {
-                        folderState.ThisStorageFolder = await StorageFolder.GetFolderFromPathAsync(folderState.Path);
-                        var query = folderState.ThisStorageFolder.CreateFileQueryWithOptions(QueryOptions);
+                        folderState.StorageFolder = await StorageFolder.GetFolderFromPathAsync(folderState.Path);
 
-                        // Retrieve list of any media files
-                        folderState.FileList = await query.GetFilesAsync();
+                        // Get count of files
+                        var queryFileCount = folderState.StorageFolder.CreateFileQueryWithOptions(queryOptions);
+                        folderState.FileCount = (int)await queryFileCount.GetItemCountAsync();
 
-                        // Get list of all the folders in this folder.
-                        folderState.FolderList = await folderState.ThisStorageFolder.GetFoldersAsync();
+                        // Get cout of folders
+                        var queryFolderCount = folderState.StorageFolder.CreateFolderQueryWithOptions(queryOptionsFolders);
+                        folderState.FolderCount = (int)await queryFolderCount.GetItemCountAsync();
+
                         allOK = true;
                     }
                     catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
@@ -177,7 +181,7 @@ namespace SimpleSlide
         /// calls from a constructor is difficult, at best.
         /// https://hackernoon.com/asynchronous-initialization-in-c-overcoming-constructor-limitations
         /// </remarks>
-        public async Task<Boolean> DeserializeState(QueryOptions queryOptions)
+        public async Task<Boolean> DeserializeState(QueryOptions queryOptions, QueryOptions queryOptionsFolders)
         {
             try
             {
@@ -197,7 +201,7 @@ namespace SimpleSlide
 
                 // This can fail if the last run's files are no longer available.
                 // Eg. a USB device no loner connecteed or a folder renamed.
-                return await FinishDeserialization(queryOptions);
+                return await FinishDeserialization(queryOptions, queryOptionsFolders);
             }
             catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
             {

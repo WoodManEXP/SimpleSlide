@@ -4,6 +4,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Search;
+using Windows.UI.WindowManagement;
+using Windows.UI.Xaml.Media.Animation;
 
 namespace SimpleSlide
 {
@@ -18,18 +20,14 @@ namespace SimpleSlide
         private FolderStateStack FolderStateStack { get; set; } = new();
         private List<String> FileTypeFilterList { get; set; }
         private QueryOptions QueryOptions { get; set; }
-        private QueryOptions QueryOptionsFileCout { get; set; }
-        private QueryOptions QueryOptionsFolderCout { get; set; }
+        private QueryOptions QueryOptionsFiles { get; set; }
+        private QueryOptions QueryOptionsFolders { get; set; }
         //private DataContractJsonSerializer DataContractJsonSerializer { get; set; }
         private Boolean EncounteredA_MediaFile { get; set; } = false;
-        private Boolean OnXBox { get; set; }
 
         public MediaList(Progress<String> fNameProgress)
         {
             FNameProgress = fNameProgress;
-
-            // Running on XBox ?
-            OnXBox = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox";
 
             // Appears to be an issue in QueryOptions class causing a cast exception when a List is passed
             // for the fie type filter list. There is mention of it in various forums. Only work-around
@@ -38,12 +36,12 @@ namespace SimpleSlide
             // var QueryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
             FileTypeFilterList = SimpleSlide.Strings.MediaTypes.Split(',').ToList();
             QueryOptions = new();
-            QueryOptionsFileCout = new()
+            QueryOptionsFiles = new()
             {
                 FolderDepth = FolderDepth.Shallow, // Just this folder
                 IndexerOption = IndexerOption.UseIndexerWhenAvailable
             };
-            QueryOptionsFolderCout = new(CommonFolderQuery.DefaultQuery)
+            QueryOptionsFolders = new(CommonFolderQuery.DefaultQuery)
             {
                 FolderDepth = FolderDepth.Shallow, // Just this folder
                 IndexerOption = IndexerOption.UseIndexerWhenAvailable
@@ -51,7 +49,7 @@ namespace SimpleSlide
             foreach (String fileType in FileTypeFilterList)
             {
                 QueryOptions.FileTypeFilter.Add(fileType);
-                QueryOptionsFileCout.FileTypeFilter.Add(fileType);
+                QueryOptionsFiles.FileTypeFilter.Add(fileType);
             }
         }
 
@@ -74,11 +72,11 @@ namespace SimpleSlide
             FolderState fS = FolderStateStack.FolderStack.Peek();
             if (null != fS)
             {
-                StorageFolder? sF = fS.ThisStorageFolder;
+                StorageFolder sF = fS.StorageFolder;
                 if (null != sF)
                 {
                     if (prependNumber)
-                        aStr = (1 + fS.LastFileNum).ToString() + ":" + fS.FileList.Count.ToString() + " " + sF.Name + "\\";
+                        aStr = (1 + fS.LastFileNum).ToString() + ":" + fS.FileCount.ToString() + " " + sF.Name + "\\";
                     else
                         aStr = sF.Name;
                 }
@@ -143,46 +141,46 @@ namespace SimpleSlide
             if (0 == FolderStateStack.FolderStack.Count) // JIC
                 return null;
 
-            FolderState? fS = FolderStateStack.FolderStack.Peek();
+            FolderState? folderState = FolderStateStack.FolderStack.Peek();
 
             while (true)
             {
                 // Nothing in the FolderStack. This case can also happen if the initial
                 // folder has no media files and no subfolders.
-                if (null == fS)
+                if (null == folderState)
                     return null;
 
                 // Have all files in folder hierarchy been processed?
                 // This is checking for having reached the end of the top-most folder. Having
-                // done this means the op folder + all elow it have been traversed.
+                // done this means the top folder and all below it have been traversed.
                 if (FolderStateStack.FolderStack.Count == 1)
-                    if (1 + fS.LastFileNum >= fS.FileList.Count || 0 == fS.FileList.Count)
-                        if (1 + fS.LastFolderNum >= fS.FolderList.Count | 0 == fS.FolderList.Count)
+                    if (1 + folderState.LastFileNum >= folderState.FileCount || 0 == folderState.FileCount)
+                        if (1 + folderState.LastFolderNum >= folderState.FolderCount | 0 == folderState.FolderCount)
                         {
-                            fS.LastFileNum = fS.LastFolderNum = -1; // Go back to beginning
+                            folderState.LastFileNum = folderState.LastFolderNum = -1; // Go back to beginning
 
-                            // Folder hierarchy and contents have been completel traversed with
+                            // Folder hierarchy and contents have been fully traversed with
                             // no playable media encoutered.
                             if (!EncounteredA_MediaFile)
                                 throw new NoMediaException();
                         }
 
                 // Any next files remaining in this folder?
-                if (1 + fS.LastFileNum < fS.FileList.Count)
-                    return fS.FileList[++fS.LastFileNum];
+                if (1 + folderState.LastFileNum < folderState.FileCount)
+                    return await GetStorageFile(++folderState.LastFileNum);
 
                 // No more next files this folder, start working the folder list
-                if (1 + fS.LastFolderNum < fS.FolderList.Count)
+                if (1 + folderState.LastFolderNum < folderState.FolderCount)
                 {
                     // Onto next folder
-                    await PrepForFolder(fS.FolderList[++fS.LastFolderNum]);
-                    fS = FolderStateStack.FolderStack.Peek();
+                    await PrepForFolder(await GetStorageFolder(++folderState.LastFolderNum));
+                    folderState = FolderStateStack.FolderStack.Peek();
                 }
                 else
                 {
                     // No more folders, pop the stack
                     FolderStateStack.FolderStack.Pop();
-                    fS = (FolderStateStack.FolderStack.Count > 0) ? FolderStateStack.FolderStack.Peek() : null;
+                    folderState = (FolderStateStack.FolderStack.Count > 0) ? FolderStateStack.FolderStack.Peek() : null;
                 }
             }
         }
@@ -196,53 +194,86 @@ namespace SimpleSlide
             if (0 == FolderStateStack.FolderStack.Count)  // JIC
                 return null;
 
-            FolderState? fS = FolderStateStack.FolderStack.Peek();
+            FolderState? folderState = FolderStateStack.FolderStack.Peek();
 
             // Boundary case: at the beginning?
-            if (1 == FolderStateStack.FolderStack.Count && fS.LastFileNum <= 0)
+            if (1 == FolderStateStack.FolderStack.Count && folderState.LastFileNum <= 0)
                 return null;
 
             while (true)
             {
-                if (null == fS)
+                if (null == folderState)
                     return null; // Nothing in the FolderStack
 
                 // Any previous files remaining in this folder?
-                if (fS.FileList.Count != 0 && fS.LastFileNum - 1 >= 0)
-                    return fS.FileList[--fS.LastFileNum];
+                if (folderState.FileCount != 0 && folderState.LastFileNum > 0)
+                    return await GetStorageFile(--folderState.LastFileNum);
 
+                // *************************************************
+                // What is this ????
                 // No more previous files this folder, start working the folder list
-                if (fS.LastFolderNum - 1 > fS.FolderList.Count)
+                if (folderState.LastFolderNum - 1 > folderState.FolderCount)
                 {
                     // Onto next folder
-                    await PrepForFolder(fS.FolderList[fS.LastFolderNum]);
-                    fS = FolderStateStack.FolderStack.Peek();
+                    await PrepForFolder(await GetStorageFolder(folderState.LastFolderNum));
+                    folderState = FolderStateStack.FolderStack.Peek();
                 }
                 else
                 {
                     // No more folders, pop the stack
                     FolderStateStack.FolderStack.Pop();
-                    fS = (FolderStateStack.FolderStack.Count > 0) ? FolderStateStack.FolderStack.Peek() : null;
-                    if (null != fS)
-                        fS.LastFolderNum = -1;  // Popping back to a parent folder. Prep to possibly start again
-                                                // with its first child folder. 
+                    folderState = (FolderStateStack.FolderStack.Count > 0) ? FolderStateStack.FolderStack.Peek() : null;
+                    if (null != folderState)
+                    {
+                        folderState.LastFolderNum = -1; // Popping back to a parent folder. Prep to possibly start again
+                                                        // with its first child folder.
+                        if (folderState.FileCount > 0)  // So the predecrement above will start at the last pic
+                            folderState.LastFileNum++;  // in the folder.
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// Get a "quick" count of files in a folder
+        /// Get a count of files in a folder
         /// </summary>
         /// <param name="storageFolder"></param>
         /// <returns></returns>
         /// <remarks>
         /// File system on XBox seems particularly slow at this...
         /// </remarks>
-        private async Task<uint> FilesThisFolder(Windows.Storage.StorageFolder? sF)
+        private async Task<int> FilesThisFolder(Windows.Storage.StorageFolder sF)
         {
-            var query = sF.CreateFileQueryWithOptions(QueryOptionsFileCout);
+            var query = sF.CreateFileQueryWithOptions(QueryOptionsFiles);
             uint fileCount = await query.GetItemCountAsync();
-            return fileCount;
+            return (int)fileCount;
+        }
+
+        /// <summary>
+        /// Retrieves the StorgeFile at position n
+        /// </summary>
+        /// <param name="n"></param>
+        /// <returns></returns>
+        private async Task<StorageFile> GetStorageFile(int n)
+        {
+            FolderState fS = FolderStateStack.FolderStack.Peek();
+            var storageFolder = fS.StorageFolder;
+            var query = storageFolder.CreateFileQueryWithOptions(QueryOptions);
+            var singleFileList = await query.GetFilesAsync((uint)n, 1);
+            return singleFileList[0];
+        }
+
+        /// <summary>
+        /// Retrieves the StorgeFolder at position n
+        /// </summary>
+        /// <param name="n"></param>
+        /// <returns></returns>
+        private async Task<StorageFolder> GetStorageFolder(int n)
+        {
+            FolderState fS = FolderStateStack.FolderStack.Peek();
+            var storageFolder = fS.StorageFolder;
+            var singleFolderList = await storageFolder.GetFoldersAsync(CommonFolderQuery.DefaultQuery, (uint)n, 1);
+            return singleFolderList[0];
         }
 
         /// <summary>
@@ -253,13 +284,13 @@ namespace SimpleSlide
         /// <remarks>
         /// File system on XBox seems particularly slow at this...
         /// </remarks>
-        private async Task<uint> FoldersThisFolder(Windows.Storage.StorageFolder? sF)
+        private async Task<int> FoldersThisFolder(Windows.Storage.StorageFolder sF)
         {
-            var query = sF.CreateFolderQueryWithOptions(QueryOptionsFolderCout);
+            var query = sF.CreateFolderQueryWithOptions(QueryOptionsFolders);
 
             // GetFolderCountAsync is much faster than GetFoldersAsync()
             uint count = await query.GetItemCountAsync();
-            return count;
+            return (int)count;
         }
 
         /// <summary>
@@ -273,27 +304,18 @@ namespace SimpleSlide
         /// </remarks>
         public async Task PrepForFolder(Windows.Storage.StorageFolder sF)
         {
-            // XBox has especially slow file system. If a large number of files/folers needs to be
-            // gathered for this sF place a Hang on... message in the status area.
-            if (OnXBox)
-            {
-                uint numFiles = await FilesThisFolder(sF);      // This is slow on Xbox
-                uint numFolders = await FoldersThisFolder(sF);  // And so is this...
-                uint tN;
-                if ((tN = numFiles + numFolders) > 100)
-                    FNameProgress.Report(SimpleSlide.Strings.FolderPrepXBox.Replace("_N", tN.ToString()));
-            }
-
             var query = sF.CreateFileQueryWithOptions(QueryOptions);
 
             // Retrieve list of any media files
-            IReadOnlyList<StorageFile>? fileList = await query.GetFilesAsync();
+            //IReadOnlyList<StorageFile>? fileList = await query.GetFilesAsync();
 
             // Get list of all the folders in this folder.
-            IReadOnlyList<StorageFolder>? folderList = await sF.GetFoldersAsync();
+            //IReadOnlyList<StorageFolder>? folderList = await sF.GetFoldersAsync();
 
             // Make a FolderState to push onto FoldersStack
-            FolderState folderState = new(sF, fileList, folderList);
+            int numFiles = await FilesThisFolder(sF);      // This is slow on Xbox
+            int numFolders = await FoldersThisFolder(sF);  // And so is this...
+            FolderState folderState = new(sF, numFiles, numFolders);
             FolderStateStack.FolderStack.Push(folderState);
 
             Ready = true;
@@ -306,12 +328,9 @@ namespace SimpleSlide
         public async Task<Boolean> DeserializeState()
         {
             // Message that this, perhaps lengthly operation is underway
-            if (OnXBox)
-                FNameProgress.Report(SimpleSlide.Strings.FromLastTimeXBox);
-            else 
-                FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
+            FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
 
-            return (Ready = await FolderStateStack.DeserializeState(QueryOptions));
+            return (Ready = await FolderStateStack.DeserializeState(QueryOptions, QueryOptionsFolders));
         }
     }
 }
