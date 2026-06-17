@@ -326,8 +326,17 @@ namespace SimpleSlide
         /// </summary>
         /// <returns></returns>
         public async Task<Boolean> DeserializeState()
-        {          
-            return (Ready = await FolderStateStack.DeserializeState(QueryOptions, QueryOptionsFolders));
+        {
+            // Message that this, perhaps lengthly operation is underway
+            if (OnXBox)
+                FNameProgress.Report(SimpleSlide.Strings.FromLastTimeXBox);
+            else 
+                FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
+
+            return (Ready = await FolderStateStack.DeserializeState(QueryOptions));
+                FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
+
+            return (Ready = await FolderStateStack.DeserializeState(QueryOptions));
         }
     }
 }
