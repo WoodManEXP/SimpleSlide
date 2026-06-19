@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
+using Windows.ApplicationModel;
 using Windows.Gaming.Input;
 using Windows.Storage;
 using Windows.System;
 using Windows.System.Threading;
+using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 
@@ -53,6 +55,14 @@ namespace SimpleSlide
         public MainPage()
         {
             InitializeComponent();
+
+            // Get app revision info into window/page title
+            Package package = Package.Current;
+            PackageId packageId = package.Id;
+            PackageVersion version = packageId.Version;
+            String vStr = version.Major.ToString() + "." + version.Minor.ToString() + "."
+                          + version.Revision.ToString() + "." + version.Build.ToString();
+            ApplicationView.GetForCurrentView().Title = vStr;
 
             // Subscribe to the UnhandledException event
             //this.DispatcherUnhandledException += App_UnhandledException;

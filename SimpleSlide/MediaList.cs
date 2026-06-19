@@ -326,10 +326,7 @@ namespace SimpleSlide
         /// </summary>
         /// <returns></returns>
         public async Task<Boolean> DeserializeState()
-        {
-            // Message that this, perhaps lengthly operation is underway
-            FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
-
+        {          
             return (Ready = await FolderStateStack.DeserializeState(QueryOptions, QueryOptionsFolders));
         }
     }

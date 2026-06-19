@@ -97,11 +97,14 @@ namespace SimpleSlide
             // Check if there is any persistant state available. If so, start the player -> this
             // has the effect of automatic playing starting from where it left off in previous run.
             SetWorkingThing(true);
+            FNameProgress.Report(SimpleSlide.Strings.FromLastTime); // 
             if (await MediaList.DeserializeState())
             {
                 MediaListLoaded = true;
                 ContinuePlaying();
             }
+            else
+                FNameProgress.Report(SimpleSlide.Strings.SelectFolder);
             SetWorkingThing(false);
 
             while (true)
