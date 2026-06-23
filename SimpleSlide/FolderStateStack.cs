@@ -19,27 +19,36 @@ namespace SimpleSlide
         [JsonInclude] public int LastFileNum { get; set; } = -1;
         [JsonInclude] public int LastFolderNum { get; set; } = -1;
         [JsonInclude] public String? Path { get; set; }                             // Full path to this folder
-        //[JsonIgnore] public IReadOnlyList<StorageFile>? FileList { get; set; }       // Files in the folder
-        //[JsonIgnore] public IReadOnlyList<StorageFolder>? FolderList { get; set; }   // Folders in te folder
         [JsonIgnore] public StorageFolder? StorageFolder { get; set; }          // This folder
+        [JsonIgnore] public StorageFileQueryResult StorageFileQuery { get; internal set; }
+        [JsonIgnore] public StorageFolderQueryResult StorageFolderQuery { get; internal set; }
         [JsonIgnore] public int FileCount { get; set; } = 0;
         [JsonIgnore] public int FolderCount { get; set; } = 0;
 
+        /// <summary>
+        /// For deserialization
+        /// </summary>
         public FolderState()
         {
 
         }
-        public FolderState(StorageFolder storageFolder, int numFiles, int numFolders)
+        public FolderState(StorageFolder storageFolder, QueryOptions queryOptionsFiles, QueryOptions queryOptionsFolders)
         {
             StorageFolder = storageFolder;
+            StorageFileQuery = storageFolder.CreateFileQueryWithOptions(queryOptionsFiles);
+            StorageFolderQuery = storageFolder.CreateFolderQueryWithOptions(queryOptionsFolders);
             Path = storageFolder.Path; // Hang on to this for deserialization reconstruction
-            FileCount = numFiles;
-            FolderCount = numFolders;
+        }
+
+        public async Task PostCtor()
+        {
+            FileCount = (int)await StorageFileQuery.GetItemCountAsync();
+            FolderCount = (int)await StorageFolderQuery.GetItemCountAsync();
         }
     }
 
     /// <summary>
-    /// Make a sub-class of Statck, to aid in JSON (De)Serialization
+    /// Make a sub-class of Stack, to aid in JSON (De)Serialization
     /// </summary>
     /// <typeparam name="T"></typeparam>
     internal class FolderStack<T> : Stack<T>
@@ -58,7 +67,7 @@ namespace SimpleSlide
         }
     }
 
-    // For non-reflection JSON (De)Serialization
+    // For non-reflection, JSON (De)Serialization
     [JsonSourceGenerationOptions(WriteIndented = true)]
     [JsonSerializable(typeof(FolderStack<FolderState>))]
     [JsonSerializable(typeof(FolderState))]
@@ -79,60 +88,6 @@ namespace SimpleSlide
         public void Clear()
         {
             FolderStack.Clear();
-        }
-
-        /// <summary>
-        /// Finish read from persistant store operation.
-        /// Construct the FileList and FolderList for each FolderState on the stack.
-        /// </summary>
-        /// <returns></returns>
-        /// <remarks>
-        /// It'd be more ituitive to have accomplished this in the FolderState parameterless constructor 
-        /// the deserializier would call. But constructors are unable to utilize async methods...
-        /// When this is entered a FoldersStack of FolderState items has been created by the Serializer.
-        /// However, Serializer cannot build FileList and FolderList members, so they are built here.
-        /// </remarks>
-        public async Task<Boolean> FinishDeserialization(QueryOptions queryOptions, QueryOptions queryOptionsFolders)
-        {
-            Boolean allOK = false;
-
-            if (null == FolderStack) // Just to be sure
-            {
-                FolderStack = new();
-                allOK = true;
-            }
-            else
-                foreach (var folderState in FolderStack)
-                {
-                    allOK = false;
-                    try
-                    {
-                        folderState.StorageFolder = await StorageFolder.GetFolderFromPathAsync(folderState.Path);
-
-                        // Get count of files
-                        var queryFileCount = folderState.StorageFolder.CreateFileQueryWithOptions(queryOptions);
-                        folderState.FileCount = (int)await queryFileCount.GetItemCountAsync();
-
-                        // Get cout of folders
-                        var queryFolderCount = folderState.StorageFolder.CreateFolderQueryWithOptions(queryOptionsFolders);
-                        folderState.FolderCount = (int)await queryFolderCount.GetItemCountAsync();
-
-                        allOK = true;
-                    }
-                    catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
-                    {
-                        Debug.WriteLine("FolderStateStack:CompleteTheRead exception " + e.Message);
-                        allOK = false;
-                    }
-
-                    if (!allOK)
-                        break;
-                }
-
-            if (!allOK)                 // Something during deserialization has failed. Clear FolderStack
-                FolderStack.Clear();
-
-            return allOK;
         }
 
         /// <summary>
@@ -181,7 +136,7 @@ namespace SimpleSlide
         /// calls from a constructor is difficult, at best.
         /// https://hackernoon.com/asynchronous-initialization-in-c-overcoming-constructor-limitations
         /// </remarks>
-        public async Task<Boolean> DeserializeState(QueryOptions queryOptions, QueryOptions queryOptionsFolders)
+        public async Task<Boolean> DeserializeState(QueryOptions queryOptionsFiles, QueryOptions queryOptionsFolders)
         {
             try
             {
@@ -201,7 +156,7 @@ namespace SimpleSlide
 
                 // This can fail if the last run's files are no longer available.
                 // Eg. a USB device no loner connecteed or a folder renamed.
-                return await FinishDeserialization(queryOptions, queryOptionsFolders);
+                return await FinishDeserialization(queryOptionsFiles, queryOptionsFolders);
             }
             catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
             {
@@ -209,5 +164,62 @@ namespace SimpleSlide
             }
             return false;
         }
+
+        /// <summary>
+        /// Finish read from persistant store operation.
+        /// Construct the FileList and FolderList for each FolderState on the stack.
+        /// </summary>
+        /// <returns></returns>
+        /// <remarks>
+        /// It'd be more ituitive to have accomplished this in the FolderState parameterless constructor 
+        /// the deserializier would call. But constructors are unable to utilize async methods...
+        /// When this is entered a FoldersStack of FolderState items has been created by the Serializer.
+        /// However, Serializer cannot build FileList and FolderList members, so they are built here.
+        /// </remarks>
+        public async Task<Boolean> FinishDeserialization(QueryOptions queryOptionsFiles, QueryOptions queryOptionsFolders)
+        {
+            Boolean allOK = false;
+
+            if (null == FolderStack) // Just to be sure
+            {
+                FolderStack = new();
+                allOK = true;
+            }
+            else
+                // Traverse each FolderState element coming in from deserialization initilizing
+                // elements that were/are not serialized.
+                foreach (var folderState in FolderStack)
+                {
+                    allOK = false;
+                    try
+                    {
+                        folderState.StorageFolder = await StorageFolder.GetFolderFromPathAsync(folderState.Path);
+                        folderState.StorageFileQuery = folderState.StorageFolder.CreateFileQueryWithOptions(queryOptionsFiles);
+                        folderState.StorageFolderQuery = folderState.StorageFolder.CreateFolderQueryWithOptions(queryOptionsFolders);
+
+                        // Get count of files
+                        folderState.FileCount = (int)await folderState.StorageFileQuery.GetItemCountAsync();
+
+                        // Get count of folders
+                        folderState.FolderCount = (int)await folderState.StorageFolderQuery.GetItemCountAsync();
+
+                        allOK = true;
+                    }
+                    catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
+                    {
+                        Debug.WriteLine("FolderStateStack:CompleteTheRead exception " + e.Message);
+                        allOK = false;
+                    }
+
+                    if (!allOK)
+                        break;
+                }
+
+            if (!allOK)                 // Something during deserialization has failed. Clear FolderStack
+                FolderStack.Clear();
+
+            return allOK;
+        }
+
     }
 }

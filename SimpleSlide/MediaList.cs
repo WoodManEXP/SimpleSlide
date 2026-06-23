@@ -19,15 +19,18 @@ namespace SimpleSlide
         public Boolean Ready { get; set; } = false; // Ready to support playing.
         private FolderStateStack FolderStateStack { get; set; } = new();
         private List<String> FileTypeFilterList { get; set; }
-        private QueryOptions QueryOptions { get; set; }
         private QueryOptions QueryOptionsFiles { get; set; }
         private QueryOptions QueryOptionsFolders { get; set; }
         //private DataContractJsonSerializer DataContractJsonSerializer { get; set; }
         private Boolean EncounteredA_MediaFile { get; set; } = false;
+        private Boolean OnXBox { get; set; }
 
         public MediaList(Progress<String> fNameProgress)
         {
             FNameProgress = fNameProgress;
+
+            // Running on XBox ?
+            OnXBox = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox";
 
             // Appears to be an issue in QueryOptions class causing a cast exception when a List is passed
             // for the fie type filter list. There is mention of it in various forums. Only work-around
@@ -35,7 +38,6 @@ namespace SimpleSlide
             // var fileTypeFilterList = new List<String>() { ".jpeg", ".jpg", ".png", ".bmp", ".gif", ".tiff", ".ico", ".svg" };
             // var QueryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
             FileTypeFilterList = SimpleSlide.Strings.MediaTypes.Split(',').ToList();
-            QueryOptions = new();
             QueryOptionsFiles = new()
             {
                 FolderDepth = FolderDepth.Shallow, // Just this folder
@@ -47,10 +49,7 @@ namespace SimpleSlide
                 IndexerOption = IndexerOption.UseIndexerWhenAvailable
             };
             foreach (String fileType in FileTypeFilterList)
-            {
-                QueryOptions.FileTypeFilter.Add(fileType);
                 QueryOptionsFiles.FileTypeFilter.Add(fileType);
-            }
         }
 
         /// <summary>
@@ -69,16 +68,16 @@ namespace SimpleSlide
 
             String aStr;
 
-            FolderState fS = FolderStateStack.FolderStack.Peek();
-            if (null != fS)
+            FolderState folderState = FolderStateStack.FolderStack.Peek();
+            if (null != folderState)
             {
-                StorageFolder sF = fS.StorageFolder;
-                if (null != sF)
+                StorageFolder storageFolder = folderState.StorageFolder;
+                if (null != storageFolder)
                 {
                     if (prependNumber)
-                        aStr = (1 + fS.LastFileNum).ToString() + ":" + fS.FileCount.ToString() + " " + sF.Name + "\\";
+                        aStr = (1 + folderState.LastFileNum).ToString() + ":" + folderState.FileCount.ToString() + " " + storageFolder.Name + "\\";
                     else
-                        aStr = sF.Name;
+                        aStr = storageFolder.Name;
                 }
                 else
                     aStr = SimpleSlide.Strings.HashSigns;
@@ -235,31 +234,14 @@ namespace SimpleSlide
         }
 
         /// <summary>
-        /// Get a count of files in a folder
-        /// </summary>
-        /// <param name="storageFolder"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// File system on XBox seems particularly slow at this...
-        /// </remarks>
-        private async Task<int> FilesThisFolder(Windows.Storage.StorageFolder sF)
-        {
-            var query = sF.CreateFileQueryWithOptions(QueryOptionsFiles);
-            uint fileCount = await query.GetItemCountAsync();
-            return (int)fileCount;
-        }
-
-        /// <summary>
         /// Retrieves the StorgeFile at position n
         /// </summary>
         /// <param name="n"></param>
         /// <returns></returns>
         private async Task<StorageFile> GetStorageFile(int n)
         {
-            FolderState fS = FolderStateStack.FolderStack.Peek();
-            var storageFolder = fS.StorageFolder;
-            var query = storageFolder.CreateFileQueryWithOptions(QueryOptions);
-            var singleFileList = await query.GetFilesAsync((uint)n, 1);
+            FolderState folderState = FolderStateStack.FolderStack.Peek();
+            var singleFileList = await folderState.StorageFileQuery.GetFilesAsync((uint)n, 1);
             return singleFileList[0];
         }
 
@@ -277,23 +259,6 @@ namespace SimpleSlide
         }
 
         /// <summary>
-        /// Get a "quick" count of folders in a folder
-        /// </summary>
-        /// <param name="storageFolder"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// File system on XBox seems particularly slow at this...
-        /// </remarks>
-        private async Task<int> FoldersThisFolder(Windows.Storage.StorageFolder sF)
-        {
-            var query = sF.CreateFolderQueryWithOptions(QueryOptionsFolders);
-
-            // GetFolderCountAsync is much faster than GetFoldersAsync()
-            uint count = await query.GetItemCountAsync();
-            return (int)count;
-        }
-
-        /// <summary>
         /// Prepare to begin playing from a folder
         /// </summary>
         /// <param name="sF">Pass in a StorageFolder is available. Otherwie will get it
@@ -304,20 +269,12 @@ namespace SimpleSlide
         /// </remarks>
         public async Task PrepForFolder(Windows.Storage.StorageFolder sF)
         {
-            var query = sF.CreateFileQueryWithOptions(QueryOptions);
-
-            // Retrieve list of any media files
-            //IReadOnlyList<StorageFile>? fileList = await query.GetFilesAsync();
-
-            // Get list of all the folders in this folder.
-            //IReadOnlyList<StorageFolder>? folderList = await sF.GetFoldersAsync();
-
             // Make a FolderState to push onto FoldersStack
-            int numFiles = await FilesThisFolder(sF);      // This is slow on Xbox
-            int numFolders = await FoldersThisFolder(sF);  // And so is this...
-            FolderState folderState = new(sF, numFiles, numFolders);
+            FolderState folderState = new(sF, QueryOptionsFiles, QueryOptionsFolders);
+            await folderState.PostCtor(); // For async things that cannot happen in constructor
+                                          // Be cool to not await here, becasue this can be long, long...
+                                          // Tough to implemet with the side-effects
             FolderStateStack.FolderStack.Push(folderState);
-
             Ready = true;
         }
 
@@ -333,10 +290,7 @@ namespace SimpleSlide
             else 
                 FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
 
-            return (Ready = await FolderStateStack.DeserializeState(QueryOptions));
-                FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
-
-            return (Ready = await FolderStateStack.DeserializeState(QueryOptions));
+            return (Ready = await FolderStateStack.DeserializeState(QueryOptionsFiles, QueryOptionsFolders));
         }
     }
 }

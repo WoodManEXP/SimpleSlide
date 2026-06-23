@@ -48,6 +48,7 @@ namespace SimpleSlide
         private enum PauseOrContinue
         { Pause, Continue }
         private DateTime LastPauseOrContinueDT = DateTime.Now;
+        private Boolean OnXBox { get; set; }
 
         // For saving app settings
         private ApplicationDataContainer ApplicationDataContainer = Windows.Storage.ApplicationData.Current.LocalSettings;
@@ -55,6 +56,8 @@ namespace SimpleSlide
         public MainPage()
         {
             InitializeComponent();
+
+            OnXBox = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox";
 
             // Get app revision info into window/page title
             Package package = Package.Current;
@@ -94,7 +97,7 @@ namespace SimpleSlide
             PlaySpeedBar.Value = 0D;
 
             // Start the player
-            _ = Player.Play(); // Player is running on another thread.
+            _ = Player.Play(); // Player runs on another thread.
         }
 
         #region XBoxController
@@ -289,7 +292,10 @@ namespace SimpleSlide
                 ContinuePauseBtn.IsEnabled = true;
                 SetToolTip(ContinuePauseBtn, SimpleSlide.Strings.PauseTT);
 
-                FNameChanged(null, SimpleSlide.Strings.Starting);
+                if (OnXBox)
+                    FNameChanged(null, SimpleSlide.Strings.StartingXBox);
+                else
+                    FNameChanged(null, SimpleSlide.Strings.Starting);
 
                 // Send Play command to player
                 Player.CommandQueue.Enqueue(new PlayerCommand()

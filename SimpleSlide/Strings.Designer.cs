@@ -115,6 +115,15 @@ namespace SimpleSlide {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Restarting from last time. XBox can be slow with this. Hang on....
+        /// </summary>
+        internal static string FromLastTimeXBox {
+            get {
+                return ResourceManager.GetString("FromLastTimeXBox", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to ####.
         /// </summary>
         internal static string HashSigns {
@@ -210,6 +219,15 @@ namespace SimpleSlide {
         internal static string Starting {
             get {
                 return ResourceManager.GetString("Starting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Starting. XBox can be slow with this. Hang on....
+        /// </summary>
+        internal static string StartingXBox {
+            get {
+                return ResourceManager.GetString("StartingXBox", resourceCulture);
             }
         }
     }

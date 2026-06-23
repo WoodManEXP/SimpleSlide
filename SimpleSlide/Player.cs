@@ -49,6 +49,7 @@ namespace SimpleSlide
         private MediaList MediaList { get; set; }
         public String? PickedFolderToken { get; set; }
         private IProgress<String> FNameProgress { get; set; }
+        private Boolean OnXBox { get; set; }
 
         // For passing commands from UI to Player
         public ConcurrentQueue<PlayerCommand> CommandQueue { get; private set; }
@@ -77,6 +78,9 @@ namespace SimpleSlide
             CommandQueue = new();
             CurrentPlayerState = PlayerState.DoingNothing; // Doing Nothing;
             MediaListLoaded = false;
+
+            // Running on XBox ?
+            OnXBox = Windows.System.Profile.AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Xbox";
         }
 
         /// <summary>
@@ -97,7 +101,10 @@ namespace SimpleSlide
             // Check if there is any persistant state available. If so, start the player -> this
             // has the effect of automatic playing starting from where it left off in previous run.
             SetWorkingThing(true);
-            FNameProgress.Report(SimpleSlide.Strings.FromLastTime); // 
+            if (OnXBox)
+                FNameProgress.Report(SimpleSlide.Strings.FromLastTimeXBox); // 
+            else
+                FNameProgress.Report(SimpleSlide.Strings.FromLastTime); // 
             if (await MediaList.DeserializeState())
             {
                 MediaListLoaded = true;

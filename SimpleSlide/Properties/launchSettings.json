@@ -6,17 +6,23 @@
       "remoteDebugMachine": "",
       "authenticationMode": "Universal"
     },
-    "SimpleSlide XBox": {
-      "commandName": "MsixPackage",
-      "remoteDebugEnabled": true,
-      "remoteDebugMachine": "10.0.0.92",
-      "authenticationMode": "Universal"
-    },
     "SimpleSlide Dell Tablet": {
       "commandName": "MsixPackage",
       "remoteDebugEnabled": true,
       "remoteDebugMachine": "RobertsDellTablet",
       "authenticationMode": "Windows"
+    },
+    "SimpleSlide MD XBox": {
+      "commandName": "MsixPackage",
+      "remoteDebugEnabled": true,
+      "remoteDebugMachine": "10.0.0.92",
+      "authenticationMode": "Universal"
+    },
+    "SimpleSlide HH XBox": {
+      "commandName": "MsixPackage",
+      "remoteDebugEnabled": true,
+      "remoteDebugMachine": "10.153.162.109",
+      "authenticationMode": "Universal"
     }
   }
 }
