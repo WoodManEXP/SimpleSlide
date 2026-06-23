@@ -73,11 +73,12 @@
                 <ProgressBar x:Name="PlaySpeedBar" Width="200" Height="10" Minimum="-1"/>
                 <TextBlock x:Name="PlaySpeedTextBlock" Padding="0,0,0,0" HorizontalAlignment="Center" Foreground="Black"/>
             </StackPanel>
-            <StackPanel x:Name="ControllerControls" Grid.Column="3" Grid.Row="0" Margin="15,0,0,0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed">
+            <StackPanel  x:Name="ControllerControls" Grid.Column="3" Grid.Row="0"  Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Visibility="Collapsed">
                 <Image Source="Assets/Menu button.png" Width="25" Height="25"/>
                 <TextBlock Text=" Select folder"/>
                 <Image Source="Assets/Y button.png" Width="25" Height="25"  Margin="15,0,0,0"/>
                 <TextBlock Text=" Help"/>
+                <TextBlock x:Name="VersionXBox" Foreground="Black" FontSize="8" Margin="8,0,0,0" VerticalAlignment="Center"/>
             </StackPanel>
         </Grid>
     </Grid>

@@ -65,7 +65,8 @@ namespace SimpleSlide
             PackageVersion version = packageId.Version;
             String vStr = version.Major.ToString() + "." + version.Minor.ToString() + "."
                           + version.Revision.ToString() + "." + version.Build.ToString();
-            ApplicationView.GetForCurrentView().Title = vStr;
+            ApplicationView.GetForCurrentView().Title = vStr;   // In tite bar for non-XBox
+            VersionXBox.Text = vStr;                            // Shows up this way on XBox
 
             // Subscribe to the UnhandledException event
             //this.DispatcherUnhandledException += App_UnhandledException;
