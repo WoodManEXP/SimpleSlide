@@ -97,11 +97,29 @@ namespace SimpleSlide {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Moving to next folder.
+        /// </summary>
+        internal static string FolderNext {
+            get {
+                return ResourceManager.GetString("FolderNext", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to _N files and folders for next folder. XBox is slow with these things. Hang on....
         /// </summary>
         internal static string FolderPrepXBox {
             get {
                 return ResourceManager.GetString("FolderPrepXBox", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Moving to previous folder.
+        /// </summary>
+        internal static string FolderPrev {
+            get {
+                return ResourceManager.GetString("FolderPrev", resourceCulture);
             }
         }
         
@@ -165,6 +183,15 @@ namespace SimpleSlide {
         internal static string NoMediaTitle {
             get {
                 return ResourceManager.GetString("NoMediaTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No previous session.
+        /// </summary>
+        internal static string NoPrevious {
+            get {
+                return ResourceManager.GetString("NoPrevious", resourceCulture);
             }
         }
         

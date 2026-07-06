@@ -7,6 +7,7 @@ using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Search;
+using Windows.UI.Xaml.Controls;
 
 namespace SimpleSlide
 {
@@ -16,8 +17,8 @@ namespace SimpleSlide
         /// One of these is pushed on the Stack, for each folder being traversed
         /// </summary>
         /// 
-        [JsonInclude] public int LastFileNum { get; set; } = -1;
-        [JsonInclude] public int LastFolderNum { get; set; } = -1;
+        [JsonInclude] public int LastFileNum { get; set; }
+        [JsonInclude] public int LastFolderNum { get; set; }
         [JsonInclude] public String? Path { get; set; }                             // Full path to this folder
         [JsonIgnore] public StorageFolder? StorageFolder { get; set; }          // This folder
         [JsonIgnore] public StorageFileQueryResult StorageFileQuery { get; internal set; }
@@ -38,8 +39,14 @@ namespace SimpleSlide
             StorageFileQuery = storageFolder.CreateFileQueryWithOptions(queryOptionsFiles);
             StorageFolderQuery = storageFolder.CreateFolderQueryWithOptions(queryOptionsFolders);
             Path = storageFolder.Path; // Hang on to this for deserialization reconstruction
+            LastFileNum = LastFolderNum = -1;
         }
 
+        /// <summary>
+        /// Do he asyc suff that annot happen in consructor
+        /// </summary>
+        /// <param name="resetFolder">If true the folder will be reset to beginning</param>
+        /// <returns></returns>
         public async Task PostCtor()
         {
             FileCount = (int)await StorageFileQuery.GetItemCountAsync();
@@ -160,7 +167,14 @@ namespace SimpleSlide
             }
             catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
             {
-                Debug.WriteLine("ReadPersistentState exception " + e.Message);
+                //Debug.WriteLine("DeserializeState exception " + e.Message);
+                ContentDialog msgDialog = new ContentDialog()
+                {
+                    Title = "DeserializeState " + SimpleSlide.Strings.NoPrevious,
+                    Content = e.Message,
+                    CloseButtonText = SimpleSlide.Strings.ContiueStr
+                };
+                await msgDialog.ShowAsync();
             }
             return false;
         }
@@ -207,7 +221,14 @@ namespace SimpleSlide
                     }
                     catch (Exception e) // FileNotFoundException, UnauthorizedAccessException
                     {
-                        Debug.WriteLine("FolderStateStack:CompleteTheRead exception " + e.Message);
+                        //Debug.WriteLine("FolderStateStack:FinishDeserialization exception " + e.Message);
+                        ContentDialog msgDialog = new ContentDialog()
+                        {
+                            Title = "FolderStateStack:FinishDeserialization exception",
+                            Content = e.Message,
+                            CloseButtonText = SimpleSlide.Strings.ContiueStr
+                        };
+                        await msgDialog.ShowAsync();
                         allOK = false;
                     }
 

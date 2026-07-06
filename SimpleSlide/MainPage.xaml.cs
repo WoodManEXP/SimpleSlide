@@ -5,6 +5,7 @@ using Windows.Gaming.Input;
 using Windows.Storage;
 using Windows.System;
 using Windows.System.Threading;
+using Windows.UI.Core;
 using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -186,9 +187,13 @@ namespace SimpleSlide
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadDown)) // Slow down
                     ChangePlaySpeed(ChangeSpeed.Slower);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadRight)) // Next image
-                    ControllerNextOrPrevious(NextOrPrevious.Next);
+                    ControllerNextOrPrevMedia(NextOrPrevious.Next);
                 else if (reading.Buttons.HasFlag(GamepadButtons.DPadLeft)) // Previous image
-                    ControllerNextOrPrevious(NextOrPrevious.Previous);
+                    ControllerNextOrPrevMedia(NextOrPrevious.Previous);
+                else if (reading.Buttons.HasFlag(GamepadButtons.RightShoulder)) // Next folder
+                    ControllerNextOrPrevFolder(NextOrPrevious.Next);
+                else if (reading.Buttons.HasFlag(GamepadButtons.LeftShoulder)) // Previous folder
+                    ControllerNextOrPrevFolder(NextOrPrevious.Previous);
                 else if (reading.Buttons.HasFlag(GamepadButtons.Y)) // Continue/Pause
                     HelpXBox();
 
@@ -374,7 +379,7 @@ namespace SimpleSlide
             };
             ToolTipService.SetToolTip(element, tt);
         }
-        private void ControllerNextOrPrevious(NextOrPrevious nextOrPrevious)
+        private void ControllerNextOrPrevMedia(NextOrPrevious nextOrPrevious)
         {
             // Limit how often these are processed
             DateTime now = DateTime.Now;
@@ -390,18 +395,47 @@ namespace SimpleSlide
                     // Send Previous image command to Player
                     Player.CommandQueue.Enqueue(new PlayerCommand()
                     {
-                        Command = PlayerCommand.PlayerCommands.Previous
+                        Command = PlayerCommand.PlayerCommands.PrevMedia
                     });
                     break;
                 default:
                     // Send Next image command to Player
                     Player.CommandQueue.Enqueue(new PlayerCommand()
                     {
-                        Command = PlayerCommand.PlayerCommands.Next
+                        Command = PlayerCommand.PlayerCommands.NextMedia
                     });
                     break;
             }
         }
+        private void ControllerNextOrPrevFolder(NextOrPrevious nextOrPrevious)
+        {
+            // Limit how often these are processed
+            DateTime now = DateTime.Now;
+            TimeSpan interval = now - LastNextOrPreviousDT;
+            if (interval.TotalMilliseconds < PSInterval)
+                return;
+
+            LastNextOrPreviousDT = now;
+
+            switch (nextOrPrevious)
+            {
+                case NextOrPrevious.Previous:
+                    // Send Previous image command to Player
+                    Player.CommandQueue.Enqueue(new PlayerCommand()
+                    {
+                        Command = PlayerCommand.PlayerCommands.PrevFolder
+                    });
+                    break;
+                default:
+                    // Send Next image command to Player
+                    Player.CommandQueue.Enqueue(new PlayerCommand()
+                    {
+                        Command = PlayerCommand.PlayerCommands.NextFolder
+                    });
+                    break;
+            }
+        }
+
         #region SpeedControl
         private void ChangePlaySpeed(ChangeSpeed change)
         {
@@ -472,6 +506,10 @@ namespace SimpleSlide
         /// https://learn.microsoft.com/en-us/uwp/api/windows.system.virtualkey?view=winrt-26100
         private void KeyDownEvent(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
         {
+            Boolean handled = true;
+
+            var shiftKey = CoreWindow.GetForCurrentThread().GetKeyState(VirtualKey.Shift).HasFlag(CoreVirtualKeyStates.Down);
+
             switch (e.Key)
             {
                 case VirtualKey.Up:
@@ -482,16 +520,26 @@ namespace SimpleSlide
                     break;
                 case VirtualKey.Right:
                     // Send Next image command to Player
-                    ControllerNextOrPrevious(NextOrPrevious.Next);
+                    if (shiftKey)
+                        ControllerNextOrPrevFolder(NextOrPrevious.Next);
+                    else
+                        ControllerNextOrPrevMedia(NextOrPrevious.Next);
                     break;
                 case VirtualKey.Left:
                     // Send Previous image command to Player
-                    ControllerNextOrPrevious(NextOrPrevious.Previous);
+                    if (shiftKey)
+                        ControllerNextOrPrevFolder(NextOrPrevious.Previous);
+                    else
+                        ControllerNextOrPrevMedia(NextOrPrevious.Previous);
                     break;
                 default: // ???
-                    base.OnKeyDown(e);
+                    //base.OnKeyDown(e);
                     break;
             }
+
+            e.Handled = handled;
+            if (!handled)
+                base.OnKeyDown(e);
         }
 
         /// <summary>

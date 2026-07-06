@@ -25,9 +25,11 @@ namespace SimpleSlide
             NewFolderStart,     // Start new from StartFolder
             Pause,              // Pause play
             Continue,           // Contiue play
-            Next,               // Move on to next item/pic
-            Previous,           // Go to previous item/pic
-            ChangeSpeed         // Change speed to this many milliseconds between images (Value)
+            PrevMedia,          // Back to previous media
+            NextMedia,          // Move on to next media
+            ChangeSpeed,        // Change speed to this many milliseconds between images (Value)
+            PrevFolder,         // Back to previous folder
+            NextFolder          // Move on to next folde
         }
         public PlayerCommands Command { get; set; }
         public int Value { get; set; } = 0;
@@ -125,7 +127,7 @@ namespace SimpleSlide
                             CurrentPlayerState = PlayerState.DoingNothing;
                             break;
                         case PlayerCommand.PlayerCommands.Pause:
-                            NextImageTimer?.Cancel();
+                            NextImageTimer?.Cancel(); NextImageTimer = null;
                             CurrentPlayerState = PlayerState.Paused;
                             break;
                         case PlayerCommand.PlayerCommands.Continue:
@@ -140,6 +142,7 @@ namespace SimpleSlide
                             await MediaList.PrepForFolder(sF);
                             CurrentPlayerState = PlayerState.Playing;
                             // Thread to play the images
+                            NextImageTimer?.Cancel(); NextImageTimer = null;
                             NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
                                                     , TimeSpan.FromMilliseconds(DelayBetweenImges));
                             MediaListLoaded = true;
@@ -148,22 +151,36 @@ namespace SimpleSlide
                         case PlayerCommand.PlayerCommands.ChangeSpeed:
                             DelayBetweenImges = playerCommand.Value; // Miliseconds
                             break;
-                        case PlayerCommand.PlayerCommands.Next:
+                        case PlayerCommand.PlayerCommands.PrevMedia:
+                        case PlayerCommand.PlayerCommands.NextMedia:
                             if (MediaListLoaded)
                             {
-                                // Kill timer, immediately move to next image
-                                NextImageTimer?.Cancel();
-                                PlayPrevious = false; // to be sure
+                                // Kill timer, immediately move to next/prev image
+                                NextImageTimer?.Cancel(); NextImageTimer = null;
+                                PlayPrevious = (PlayerCommand.PlayerCommands.PrevMedia == playerCommand.Command) ? true : false;
                                 NextImageHandler(null);
                             }
                             break;
-                        case PlayerCommand.PlayerCommands.Previous:
+                        case PlayerCommand.PlayerCommands.PrevFolder:
+                        case PlayerCommand.PlayerCommands.NextFolder:
                             if (MediaListLoaded)
                             {
-                                // Kill timer, immediately move to previous image
-                                NextImageTimer?.Cancel();
-                                PlayPrevious = true;
-                                NextImageHandler(null);
+                                SetWorkingThing(true);
+                                // Kill timer, immediately move to next/prev folder
+                                NextImageTimer?.Cancel(); NextImageTimer = null;
+                                PlayPrevious = false; // to be sure
+                                if (PlayerCommand.PlayerCommands.PrevFolder == playerCommand.Command)
+                                {
+                                    FNameProgress.Report(SimpleSlide.Strings.FolderPrev);
+                                    await MediaList.StackPrevFolder();
+                                }
+                                else
+                                {
+                                    FNameProgress.Report(SimpleSlide.Strings.FolderNext);
+                                    await MediaList.StackNextFolder();
+                                }
+                                SetWorkingThing(false);
+                                NextImageHandler(null); // At differet folder, show image
                             }
                             break;
                         default:
@@ -273,6 +290,7 @@ namespace SimpleSlide
 
             if (CurrentPlayerState == PlayerState.Playing)
                 // Schedule to return in DelayBetweenImges milliseconds
+                NextImageTimer?.Cancel(); NextImageTimer = null;
                 NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
                             , TimeSpan.FromMilliseconds(DelayBetweenImges));
         }

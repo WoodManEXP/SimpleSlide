@@ -4,8 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Search;
-using Windows.UI.WindowManagement;
-using Windows.UI.Xaml.Media.Animation;
 
 namespace SimpleSlide
 {
@@ -97,7 +95,7 @@ namespace SimpleSlide
             StorageFile? sF;
             try
             {
-                sF = await StackGetNext();
+                sF = await StackNextMedia();
 
                 await FolderStateStack.SerializeState(); // place in folder hierachy has changed, remember.
 
@@ -117,7 +115,7 @@ namespace SimpleSlide
         /// <returns></returns>
         public async Task<StorageFile?> GetPreviousMedia()
         {
-            StorageFile? sF = await StackGetPrevious();
+            StorageFile? sF = await StackPreviousMedia();
 
             await FolderStateStack.SerializeState(); // place in folder hierachy has changed, remember.
 
@@ -133,9 +131,9 @@ namespace SimpleSlide
         /// <returns></returns>
         /// <remarks>
         /// This begs to be impemented via recursion, but recursion does not fit well with
-        /// other needs. So a loop and Stack are used.
+        /// other needs. So a loop and stack are used.
         /// </remarks>
-        private async Task<StorageFile?> StackGetNext()
+        private async Task<StorageFile?> StackNextMedia()
         {
             if (0 == FolderStateStack.FolderStack.Count) // JIC
                 return null;
@@ -154,7 +152,7 @@ namespace SimpleSlide
                 // done this means the top folder and all below it have been traversed.
                 if (FolderStateStack.FolderStack.Count == 1)
                     if (1 + folderState.LastFileNum >= folderState.FileCount || 0 == folderState.FileCount)
-                        if (1 + folderState.LastFolderNum >= folderState.FolderCount | 0 == folderState.FolderCount)
+                        if (1 + folderState.LastFolderNum >= folderState.FolderCount || 0 == folderState.FolderCount)
                         {
                             folderState.LastFileNum = folderState.LastFolderNum = -1; // Go back to beginning
 
@@ -187,8 +185,11 @@ namespace SimpleSlide
         /// <summary>
         /// Work the Stack to get previous media
         /// </summary>
+        /// <remarks>
+        /// Prep te next folder to start at the beining
+        /// </remarks>
         /// <returns></returns>
-        private async Task<StorageFile?> StackGetPrevious()
+        private async Task<StorageFile?> StackPreviousMedia()
         {
             if (0 == FolderStateStack.FolderStack.Count)  // JIC
                 return null;
@@ -230,6 +231,82 @@ namespace SimpleSlide
                             folderState.LastFileNum++;  // in the folder.
                     }
                 }
+            }
+        }
+
+        /// <summary>
+        /// Move player MediaList into beginning of next folder
+        /// </summary>
+        /// <remarks>
+        /// Prep te next folder to start at the beining
+        /// </remarks>
+        /// <returns></returns>
+        public async Task StackNextFolder()
+        {
+            if (0 == FolderStateStack.FolderStack.Count) // JIC
+                return;
+
+            FolderState folderState = FolderStateStack.FolderStack.Peek();
+
+            while (true)
+            {
+                // Is a next folder available in the hierarchy?
+                if (FolderStateStack.FolderStack.Count == 1)
+                    if (1 + folderState.LastFolderNum >= folderState.FolderCount || 0 == folderState.FolderCount)
+                    {
+                        folderState.LastFileNum = folderState.LastFolderNum = -1; // Go back to beginning
+                        break;
+                    }
+
+                if (folderState.FolderCount > 0 && 1 + folderState.LastFolderNum < folderState.FolderCount)
+                {
+                    // Onto next folder
+                    await PrepForFolder(await GetStorageFolder(++folderState.LastFolderNum));
+                    break;
+                }
+
+                // No more folders, pop the stack
+                FolderStateStack.FolderStack.Pop();
+                folderState = FolderStateStack.FolderStack.Peek();
+            }
+        }
+
+        /// <summary>
+        /// Move player MediaList into beginning of previous folder
+        /// </summary>
+        /// <returns></returns>
+        public async Task StackPrevFolder()
+        {
+            if (0 == FolderStateStack.FolderStack.Count) // JIC
+                return;
+
+            FolderState folderState = FolderStateStack.FolderStack.Peek();
+
+            while (true)
+            {
+                // Look for a previous folder available in the hierarchy?
+
+                if (FolderStateStack.FolderStack.Count == 1) // At the top
+                    if (0 == folderState.FolderCount                                // No folders
+                        || 1 + folderState.LastFolderNum >= folderState.FolderCount // already at end of of folder
+                        || -1 == folderState.LastFolderNum                          // Had not started traversing folders
+                        || 0 == folderState.LastFolderNum)                          // Were in the first folder
+                    {
+                        // Go back to beginning of top folder
+                        folderState.LastFileNum = folderState.LastFolderNum = -1; // Go back to beginning
+                        break;
+                    }
+
+                // Back up in present folder?
+                if (0 != folderState.FolderCount && -1 + folderState.LastFolderNum >= 0)
+                {
+                    await PrepForFolder(await GetStorageFolder(--folderState.LastFolderNum));
+                    break;
+                }
+
+                // No more folders in preset folder, pop the stack
+                FolderStateStack.FolderStack.Pop();
+                folderState = FolderStateStack.FolderStack.Peek();
             }
         }
 
@@ -284,10 +361,10 @@ namespace SimpleSlide
         /// <returns></returns>
         public async Task<Boolean> DeserializeState()
         {
-            // Message that this, perhaps lengthly operation is underway
+            // Message that this, perhaps lengthly operation, is underway
             if (OnXBox)
                 FNameProgress.Report(SimpleSlide.Strings.FromLastTimeXBox);
-            else 
+            else
                 FNameProgress.Report(SimpleSlide.Strings.FromLastTime);
 
             return (Ready = await FolderStateStack.DeserializeState(QueryOptionsFiles, QueryOptionsFolders));
