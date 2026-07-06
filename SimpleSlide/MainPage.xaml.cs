@@ -83,6 +83,7 @@ namespace SimpleSlide
             Player = new(PickedFolderTokenName, FNameProgress)
             {
                 ImagePane = [Image0, Image1], // The XAML image elements
+                MediaPlayerPane = [Video0, Video1],
                 ImageFadeStoryBoard = [Image0FadeStoryboard, Image1FadeStoryboard],
                 ImageFadeAnimation = [Image0Animation, Image1Animation],
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex],

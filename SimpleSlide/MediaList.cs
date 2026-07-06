@@ -260,6 +260,9 @@ namespace SimpleSlide
 
                 if (folderState.FolderCount > 0 && 1 + folderState.LastFolderNum < folderState.FolderCount)
                 {
+                    // Skip any remaining media in this folder (for when/if it pops back here)
+                    folderState.LastFileNum = folderState.FileCount;
+
                     // Onto next folder
                     await PrepForFolder(await GetStorageFolder(++folderState.LastFolderNum));
                     break;

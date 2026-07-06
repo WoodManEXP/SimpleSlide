@@ -60,6 +60,7 @@ namespace SimpleSlide
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? NextImageTimer { get; set; } = null;
         public Image[] ImagePane { get; set; } = new Image[2];
+        public MediaPlayerElement[] MediaPlayerPane { get; set; } = new MediaPlayerElement[2];
         public Storyboard[] ImageFadeStoryBoard { get; set; } = new Storyboard[2];
         public DoubleAnimation[] ImageFadeAnimation { get; set; } = new DoubleAnimation[2];
         public ProgressRing? WorkingThing { get; set; }
@@ -304,7 +305,7 @@ namespace SimpleSlide
             try
             {
                 sF = PlayPrevious ? await MediaList.GetPreviousMedia() : await MediaList.GetNextMedia();
-                await ShowImage(sF);
+                await ShowMedia(sF);
             }
             catch (NoMediaException)
             {
@@ -315,7 +316,7 @@ namespace SimpleSlide
         private int FadeInImageNum { get; set; } = 0;
 
         [MethodImpl(MethodImplOptions.NoOptimization)]
-        private async Task ShowImage(StorageFile? sF)
+        private async Task ShowMedia(StorageFile? sF)
         {
             if (null == sF)
                 return;

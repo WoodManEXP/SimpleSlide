@@ -29,6 +29,8 @@
         </Grid.RowDefinitions>
         <Image x:Name="Image0" Grid.Row="0"/>
         <Image x:Name="Image1" Grid.Row="0"/>
+        <MediaPlayerElement x:Name="Video0" Grid.Row="0"/>
+        <MediaPlayerElement x:Name="Video1" Grid.Row="0"/>
         <ProgressRing x:Name="WorkingThing" Grid.Row="0" Visibility="Collapsed" IsActive="False"
                       Foreground="CadetBlue" Height="100" Width="100"/>
         <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="5,5,5,5">
