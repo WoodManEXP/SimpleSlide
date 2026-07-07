@@ -22,6 +22,7 @@ namespace SimpleSlide
         {
             InitializeComponent();
 
+            // Subscribe to the UnhandledException event
             this.UnhandledException += App_UnhandledException;
 
             Suspending += OnSuspending;
@@ -32,7 +33,7 @@ namespace SimpleSlide
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        //[MethodImpl(MethodImplOptions.NoOptimization)]
+        [MethodImpl(MethodImplOptions.NoOptimization)]
         private void App_UnhandledException(object sender, Windows.UI.Xaml.UnhandledExceptionEventArgs e)
         {
             /*
@@ -51,7 +52,6 @@ namespace SimpleSlide
             GC.KeepAlive(stackTrace);
             */
             e.Handled = false;
-            //throw new NotImplementedException();
         }
 
         /// <inheritdoc/>
