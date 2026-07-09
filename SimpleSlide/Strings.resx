@@ -150,8 +150,8 @@
   <data name="LookingFor" xml:space="preserve">
     <value>Looking for any of these file types: </value>
   </data>
-  <data name="MediaTypes" xml:space="preserve">
-    <value>.jpeg,.jpg,.png,.bmp,.gif,.tiff,.ico,.svg</value>
+  <data name="ImageFileTypes" xml:space="preserve">
+    <value>.jpeg, .jpg, .png, .bmp, .gif, .tiff, .ico, .svg</value>
   </data>
   <data name="NoMediaMessage" xml:space="preserve">
     <value>There is no media in or under the selected folder "_0." Try a different folder.</value>
@@ -182,5 +182,8 @@
   </data>
   <data name="StartingXBox" xml:space="preserve">
     <value>Starting. XBox can be slow with this. Hang on...</value>
+  </data>
+  <data name="VideoFileTypes" xml:space="preserve">
+    <value>.mts, .mp4, .m4v, .mp4v, .3g2, .3gp2, .3gp, .3gpp, .mov, .mpg, .mpeg, .m1v, .mp2,.mp3, .mpa, .mpe, .m3u, .avi, .asf, .wma, .wmv, .wm</value>
   </data>
 </root>

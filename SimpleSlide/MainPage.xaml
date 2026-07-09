@@ -8,18 +8,19 @@
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
     <Page.Resources>
-        <Storyboard x:Name="Image0FadeStoryboard">
-            <DoubleAnimation x:Name="Image0Animation"
+        <Storyboard x:Name="Storyboard0">
+            <DoubleAnimation x:Name="Animation0"
                              Storyboard.TargetName="Image0"
                              Storyboard.TargetProperty="Opacity" 
-                             From="0.0" To="1.0" Duration="0:0:1"/> <!-- Set in code-behind -->
+                             From="0.0" To="1.0" Duration="0:0:1"/>
+            <!-- These and TargetName are set in code-behind -->
         </Storyboard>
-        <Storyboard x:Name="Image1FadeStoryboard">
-            <DoubleAnimation x:Name="Image1Animation"
-                             Storyboard.TargetName="Image1" 
+        <Storyboard x:Name="Storyboard1">
+            <DoubleAnimation x:Name="Animation1"
+                             Storyboard.TargetName="Video0"
                              Storyboard.TargetProperty="Opacity" 
                              From="0.0" To="1.0" Duration="0:0:1"/>
-            <!-- Set in code-behind -->
+            <!-- These and TargetName are set in code-behind -->
         </Storyboard>
     </Page.Resources>
     <Grid Background="DarkGray" KeyDown="KeyDownEvent">
@@ -29,8 +30,28 @@
         </Grid.RowDefinitions>
         <Image x:Name="Image0" Grid.Row="0"/>
         <Image x:Name="Image1" Grid.Row="0"/>
-        <MediaPlayerElement x:Name="Video0" Grid.Row="0"/>
-        <MediaPlayerElement x:Name="Video1" Grid.Row="0"/>
+        <MediaPlayerElement x:Name="Video0" AreTransportControlsEnabled="False" Opacity="0.0" Grid.Row="0">
+            <MediaPlayerElement.TransportControls>
+                <MediaTransportControls IsCompact="True"
+                                IsFullWindowButtonVisible="False"
+                                IsZoomButtonVisible="False" 
+                                IsPlaybackRateButtonVisible="False"
+                                IsSkipForwardButtonVisible="True"
+                                IsSkipBackwardButtonVisible="True"
+                                IsStopButtonVisible="True" />
+            </MediaPlayerElement.TransportControls>
+        </MediaPlayerElement>
+        <MediaPlayerElement x:Name="Video1" AreTransportControlsEnabled="True" Opacity="0.0" Grid.Row="0">
+            <MediaPlayerElement.TransportControls>
+                <MediaTransportControls IsCompact="True"
+                                IsFullWindowButtonVisible="False"
+                                IsZoomButtonVisible="False"
+                                IsPlaybackRateButtonVisible="False"
+                                IsSkipForwardButtonVisible="True"
+                                IsSkipBackwardButtonVisible="True"
+                                IsStopButtonVisible="True" />
+            </MediaPlayerElement.TransportControls>
+        </MediaPlayerElement>
         <ProgressRing x:Name="WorkingThing" Grid.Row="0" Visibility="Collapsed" IsActive="False"
                       Foreground="CadetBlue" Height="100" Width="100"/>
         <Grid Grid.Row="1" VerticalAlignment="Bottom" Margin="5,5,5,5">

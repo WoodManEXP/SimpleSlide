@@ -4,6 +4,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
+using Windows.Media.Core;
+using Windows.Media.Playback;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using Windows.System.Threading;
@@ -43,11 +45,15 @@ namespace SimpleSlide
     {
         public enum PlayerState // What is player doing
         {
-            DoingNothing,
-            Playing,
-            Paused
+            DoingNothing, Playing, Paused
         }
         public PlayerState CurrentPlayerState { get; set; }
+        private enum MediaType
+        {
+            None, Image, Video
+        }
+        private MediaType ThisMediaType { get; set; } = MediaType.None;
+        private MediaType OtherMediaType { get; set; } = MediaType.None;
         private MediaList MediaList { get; set; }
         public String? PickedFolderToken { get; set; }
         private IProgress<String> FNameProgress { get; set; }
@@ -60,9 +66,9 @@ namespace SimpleSlide
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? NextImageTimer { get; set; } = null;
         public Image[] ImagePane { get; set; } = new Image[2];
-        public MediaPlayerElement[] MediaPlayerPane { get; set; } = new MediaPlayerElement[2];
-        public Storyboard[] ImageFadeStoryBoard { get; set; } = new Storyboard[2];
-        public DoubleAnimation[] ImageFadeAnimation { get; set; } = new DoubleAnimation[2];
+        public MediaPlayerElement[] VideoPane { get; set; } = new MediaPlayerElement[2];
+        public Storyboard[] MediaStoryBoard { get; set; } = new Storyboard[2];
+        public DoubleAnimation[] MediaAnimation { get; set; } = new DoubleAnimation[2];
         public ProgressRing? WorkingThing { get; set; }
         private Boolean PlayPrevious { get; set; } = false;
 
@@ -203,7 +209,9 @@ namespace SimpleSlide
                 Windows.UI.Core.CoreDispatcherPriority.Normal,
                 (Windows.UI.Core.DispatchedHandler)(async () =>
                 {
+                    // Set no media
                     ImagePane[0].Source = ImagePane[1].Source = null;
+                    VideoPane[0].Source = VideoPane[1].Source = null;
                 })
             );
         }
@@ -269,7 +277,9 @@ namespace SimpleSlide
                             {
                                 MessageTitle = SimpleSlide.Strings.NoMediaTitle,
                                 Message0 = SimpleSlide.Strings.NoMediaMessage.Replace("_0", MediaList.CurrentFolderName(false)),
-                                Message1 = SimpleSlide.Strings.LookingFor + SimpleSlide.Strings.MediaTypes
+                                Message1 = SimpleSlide.Strings.LookingFor + SimpleSlide.Strings.ImageFileTypes
+                                           + " "
+                                           + SimpleSlide.Strings.VideoFileTypes
                             };
                             await messageDialog.ShowAsync();
                         })
@@ -292,6 +302,10 @@ namespace SimpleSlide
             if (CurrentPlayerState == PlayerState.Playing)
                 // Schedule to return in DelayBetweenImges milliseconds
                 NextImageTimer?.Cancel(); NextImageTimer = null;
+
+            // If a video just started do not schedule the timer. When the video finishes or
+            // next/prev command comes through things will move to next media.
+            if (MediaType.Video != ThisMediaType)
                 NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
                             , TimeSpan.FromMilliseconds(DelayBetweenImges));
         }
@@ -313,22 +327,50 @@ namespace SimpleSlide
             }
         }
 
-        private int FadeInImageNum { get; set; } = 0;
+        private int FadeInNum { get; set; } = 0;
+        private Duration OtherDuration { get; set; } = new Duration(TimeSpan.FromSeconds(0));
+        private Duration ThisDuration { get; set; } = new Duration(TimeSpan.FromSeconds(1));
 
-        [MethodImpl(MethodImplOptions.NoOptimization)]
+        //[MethodImpl(MethodImplOptions.NoOptimization)]
         private async Task ShowMedia(StorageFile? sF)
         {
             if (null == sF)
                 return;
 
-            // Select image element and storyboard, moving back and forth between the two.
-            Image thisImage = ImagePane[FadeInImageNum];
-            Storyboard thisStoryboard = ImageFadeStoryBoard[FadeInImageNum];
-            DoubleAnimation thisAnimation = ImageFadeAnimation[FadeInImageNum];
-            FadeInImageNum = (0 == FadeInImageNum) ? 1 : 0;
-            Image otherImage = ImagePane[FadeInImageNum]; // This'll be the currently displayed image
-            Storyboard otherStoryboard = ImageFadeStoryBoard[FadeInImageNum];
-            DoubleAnimation otherAnimation = ImageFadeAnimation[FadeInImageNum]; ;
+            /*
+                no media -> image	Fadeout nothing			Fadein this image
+                no media -> video	Fadeout nothing			Fadein this video
+                image -> image		Fadeout other image		Fadein this image	
+                image -> video		Fadeout other image		Fadein this video
+                video -> video		Fadeout other video		Fadein this video
+                video -> image		Fadeout other video		Fadein this image
+            */
+
+            // Is the incoming sF image or video?
+            Boolean thisIsAnImage = (MediaList.ImageFileTypes.Contains(sF.FileType.ToUpperInvariant())) ? true : false;
+            Boolean otherIsAnImage = (MediaType.Video == ThisMediaType) ? false : true;
+
+            Image thisImage, otherImage;
+            MediaPlayerElement thisMediaPlayerElement, otherMediaPlayerElement;
+            Storyboard thisStoryboard, otherStoryboard;
+            DoubleAnimation thisAnimation, otherAnimation;
+
+            // Select image/video element and storyboard, moving back and forth between the two.
+            thisImage = ImagePane[FadeInNum];
+            thisMediaPlayerElement = VideoPane[FadeInNum];
+            thisStoryboard = MediaStoryBoard[FadeInNum];
+            thisAnimation = MediaAnimation[FadeInNum];
+            FadeInNum = (0 == FadeInNum) ? 1 : 0;
+            otherImage = ImagePane[FadeInNum]; // This'll be the currently displayed media
+            otherMediaPlayerElement = VideoPane[FadeInNum];
+            otherStoryboard = MediaStoryBoard[FadeInNum];
+            otherAnimation = MediaAnimation[FadeInNum];
+
+            OtherMediaType = ThisMediaType;
+            ThisMediaType = thisIsAnImage ? MediaType.Image : MediaType.Video;
+
+            //if (!thisIsAnImage)
+            //    System.Diagnostics.Debugger.Break();
 
             // The following activities must take place on the UI thread, so use the Dispatcher to toss them over,
             // via a lambda expression, to that thread.
@@ -336,43 +378,140 @@ namespace SimpleSlide
                     Windows.UI.Core.CoreDispatcherPriority.Normal,
                     async () =>
                 {
-                    // Set the image source to the selected bitmap 
-                    var bitmapImage = new BitmapImage()
+                    try
                     {
-                        CreateOptions = BitmapCreateOptions.IgnoreImageCache // Necessary ??
-                    };
+                        thisStoryboard.Stop();
+                        otherStoryboard.Stop();
 
-                    bitmapImage.DecodePixelWidth = (int)thisImage.Width; //match the target Image.Width, not shown
-                    bitmapImage.ImageOpened += (s, e) =>
+                        // Prep/target Storyboards and Animations for fade in/out
+                        switch (OtherMediaType)
+                        {
+                            case MediaType.Image:
+                                Storyboard.SetTargetName(otherAnimation, otherImage.Name);
+                                break;
+                            case MediaType.Video:
+                                Storyboard.SetTargetName(otherAnimation, otherMediaPlayerElement.Name);
+                                break;
+                            default:    // LastMedia.None
+                                //fadeOut = false;
+                                break;
+                        }
+
+                        switch (ThisMediaType)
+                        {
+                            case MediaType.Image:
+                                Storyboard.SetTargetName(thisAnimation, thisImage.Name);
+                                break;
+                            default: // case LastMedia.Video:
+                                Storyboard.SetTargetName(thisAnimation, thisMediaPlayerElement.Name);
+                                break;
+                        }
+
+                        // For making existing media disappear
+                        otherAnimation.Duration = OtherDuration;
+                        otherAnimation.From = 1D;
+                        otherAnimation.To = 0D;
+
+                        // For making new media appear
+                        thisAnimation.Duration = ThisDuration;
+                        thisAnimation.From = 0D;
+                        thisAnimation.To = 1D;
+                    }
+                    catch (Exception ex)
+                    {
+                        String mStr = ex.Message;
+                    }
+
+                    if (thisIsAnImage)
                     {
                         try
                         {
-                            // For making new image appear
-                            //var thisDoubleAnimation = thisStoryboard.Children[0] as DoubleAnimation;
-                            thisAnimation?.Duration = new Duration(TimeSpan.FromSeconds(1));
-                            thisAnimation?.From = 0D;
-                            thisAnimation?.To = 1D;
+                            // Set the image source to the selected bitmap 
+                            var bitmapImage = new BitmapImage()
+                            {
+                                CreateOptions = BitmapCreateOptions.IgnoreImageCache // Necessary ??
+                            };
 
-                            // For making existig image disappear
-                            //var otherDoubleAnimation = otherStoryboard.Children[0] as DoubleAnimation;
-                            otherAnimation?.Duration = new Duration(TimeSpan.FromSeconds(0));
-                            otherAnimation?.From = 1D;
-                            otherAnimation?.To = 0D;
-
+                            bitmapImage.DecodePixelWidth = (int)thisImage.Width; //match the target Image.Width, not shown
+                            bitmapImage.ImageOpened += (s, e) =>
+                            {
+                                //if (fadeOut)
+                                //    otherStoryboard.Begin();
+                                thisStoryboard.Begin();
+                                ReleaseMedia(otherMediaPlayerElement, otherImage);
+                            };
                             otherStoryboard.Begin();
-                            thisStoryboard.Begin();
+
+                            IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read);
+                            await bitmapImage.SetSourceAsync(fileStream);
+                            thisImage?.Source = bitmapImage;
                         }
                         catch (Exception ex)
                         {
                             String mStr = ex.Message;
                         }
-                    };
-                    IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read);
-                    await bitmapImage.SetSourceAsync(fileStream);
-                    thisImage?.Source = bitmapImage;
+                    }
+                    else // This is a video
+                    {
+                        try
+                        {
+                            var mediaPlayer = new MediaPlayer
+                            {
+                                AutoPlay = true,
+                                Source = MediaSource.CreateFromStorageFile(sF)
+                            };
+                            thisMediaPlayerElement.SetMediaPlayer(mediaPlayer);
+
+                            mediaPlayer.MediaOpened += (MediaPlayer sender, object args) =>
+                            {
+                                //if (fadeOut)
+                                //        otherStoryboard.Begin();
+                                //    thisStoryboard.Begin();
+                                //    ReleaseMedia(otherMediaPlayerElement, otherImage);
+                            };
+                            mediaPlayer.MediaEnded += (MediaPlayer sender, object args) =>
+                            {
+                                // Move to next media whe video is completed
+                                // Send Next image command to Player
+                                this.CommandQueue.Enqueue(new PlayerCommand()
+                                {
+                                    Command = PlayerCommand.PlayerCommands.NextMedia
+                                });
+                            };
+
+                            otherStoryboard.Begin();
+                            thisStoryboard.Begin();
+                            ReleaseMedia(otherMediaPlayerElement, otherImage);
+                            mediaPlayer.Play();
+                        }
+                        catch (Exception ex)
+                        {
+                            String mStr = ex.Message;
+                        }
+                    }
                 }
                 );
             FNameProgress.Report(MediaList.CurrentFolderName(true) + sF.Name);
+        }
+        /// <summary>
+        /// Release resoures that were associated with a XAML MediaPlayerElement
+        /// </summary>
+        /// <param name="mpe">MediaPlayerElement</param>
+        /// <param name="image">Image elemet</param>
+        private void ReleaseMedia(MediaPlayerElement mpe, Image image)
+        {
+            // Free resources from previous video, if there was one
+            var mediaPlayer = mpe.MediaPlayer;
+            if (null != mediaPlayer)
+            {
+                IMediaPlaybackSource source = mediaPlayer.Source;
+                if (source is MediaSource mediaSource)
+                    mediaSource.Dispose();
+                mediaPlayer.Dispose();
+                mpe.SetMediaPlayer(null);
+            }
+            if (null != image)
+                image.Source = null;
         }
     }
 }

@@ -151,20 +151,20 @@ namespace SimpleSlide {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to .jpeg, .jpg, .png, .bmp, .gif, .tiff, .ico, .svg.
+        /// </summary>
+        internal static string ImageFileTypes {
+            get {
+                return ResourceManager.GetString("ImageFileTypes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Looking for any of these file types: .
         /// </summary>
         internal static string LookingFor {
             get {
                 return ResourceManager.GetString("LookingFor", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to .jpeg,.jpg,.png,.bmp,.gif,.tiff,.ico,.svg.
-        /// </summary>
-        internal static string MediaTypes {
-            get {
-                return ResourceManager.GetString("MediaTypes", resourceCulture);
             }
         }
         
@@ -255,6 +255,15 @@ namespace SimpleSlide {
         internal static string StartingXBox {
             get {
                 return ResourceManager.GetString("StartingXBox", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to .mts, .mp4, .m4v, .mp4v, .3g2, .3gp2, .3gp, .3gpp, .mov, .mpg, .mpeg, .m1v, .mp2,.mp3, .mpa, .mpe, .m3u, .avi, .asf, .wma, .wmv, .wm.
+        /// </summary>
+        internal static string VideoFileTypes {
+            get {
+                return ResourceManager.GetString("VideoFileTypes", resourceCulture);
             }
         }
     }

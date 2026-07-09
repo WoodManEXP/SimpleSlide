@@ -27,6 +27,9 @@ Import-PfxCertificate -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" -Pas
 Privacy Policy
 https://sites.google.com/view/simpleslide-privacy-policy/home
 
+https://support.microsoft.com/en-US/Windows/Apps/WindowsMediaPlayer/file-types-supported-by-windows-media-player
+.mp4,.m4v,.mp4v,.3g2,.3gp2,.3gp,.3gpp,.mov,.mpg,.mpeg,.m1v,.mp2,.mp3,.mpa,.mpe,.m3u,.avi,.asf,.wma,.wmv,.wm
+
 Timer fires
 	if (ready & Playing)
 		Show next image

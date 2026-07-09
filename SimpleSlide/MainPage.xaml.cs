@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Security.AccessControl;
 using Windows.ApplicationModel;
 using Windows.Gaming.Input;
 using Windows.Storage;
@@ -69,9 +70,6 @@ namespace SimpleSlide
             ApplicationView.GetForCurrentView().Title = vStr;   // In tite bar for non-XBox
             VersionXBox.Text = vStr;                            // Shows up this way on XBox
 
-            // Subscribe to the UnhandledException event
-            //this.DispatcherUnhandledException += App_UnhandledException;
-
             FNameProgress = new Progress<String>();
 
             // If a DelayBetweenImges setting was saved, go with that.
@@ -83,9 +81,9 @@ namespace SimpleSlide
             Player = new(PickedFolderTokenName, FNameProgress)
             {
                 ImagePane = [Image0, Image1], // The XAML image elements
-                MediaPlayerPane = [Video0, Video1],
-                ImageFadeStoryBoard = [Image0FadeStoryboard, Image1FadeStoryboard],
-                ImageFadeAnimation = [Image0Animation, Image1Animation],
+                VideoPane = [Video0, Video1],
+                MediaStoryBoard = [Storyboard0, Storyboard1],
+                MediaAnimation = [Animation0, Animation1],
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex],
                 WorkingThing = WorkingThing // ProgressRing
             };
@@ -222,7 +220,7 @@ namespace SimpleSlide
         }
 
         /// <summary>
-        /// Display help whe o XBox
+        /// Display help when on XBox
         /// </summary>
         private Boolean HelpOpen = false;
         private async void HelpXBox()
@@ -534,7 +532,7 @@ namespace SimpleSlide
                         ControllerNextOrPrevMedia(NextOrPrevious.Previous);
                     break;
                 default: // ???
-                    //base.OnKeyDown(e);
+                    handled = false;
                     break;
             }
 
@@ -550,12 +548,10 @@ namespace SimpleSlide
         /// <param name="e"></param>
         private void Image1Opened(object sender, RoutedEventArgs e)
         {
-
         }
 
         private void DoubleAnimation_Completed(object sender, object e)
         {
-
         }
 
         private void HelpBtn_Click(object sender, RoutedEventArgs e)

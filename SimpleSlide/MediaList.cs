@@ -17,6 +17,8 @@ namespace SimpleSlide
         public Boolean Ready { get; set; } = false; // Ready to support playing.
         private FolderStateStack FolderStateStack { get; set; } = new();
         private List<String> FileTypeFilterList { get; set; }
+        public List<String> ImageFileTypes { get; set; }
+        public List<String> VideoFileTypes { get; set; }
         private QueryOptions QueryOptionsFiles { get; set; }
         private QueryOptions QueryOptionsFolders { get; set; }
         //private DataContractJsonSerializer DataContractJsonSerializer { get; set; }
@@ -35,7 +37,9 @@ namespace SimpleSlide
             // found is what is impemented here...
             // var fileTypeFilterList = new List<String>() { ".jpeg", ".jpg", ".png", ".bmp", ".gif", ".tiff", ".ico", ".svg" };
             // var QueryOptions = new QueryOptions(CommonFileQuery.OrderByName, fileTypeFilterList);
-            FileTypeFilterList = SimpleSlide.Strings.MediaTypes.Split(',').ToList();
+            ImageFileTypes = SimpleSlide.Strings.ImageFileTypes.ToUpperInvariant().Replace(" ", string.Empty).Split(',').ToList();
+            VideoFileTypes = SimpleSlide.Strings.VideoFileTypes.ToUpperInvariant().Replace(" ", string.Empty).Split(',').ToList();
+            FileTypeFilterList = [.. ImageFileTypes, .. VideoFileTypes];
             QueryOptionsFiles = new()
             {
                 FolderDepth = FolderDepth.Shallow, // Just this folder

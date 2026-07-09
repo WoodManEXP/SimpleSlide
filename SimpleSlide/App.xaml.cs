@@ -36,22 +36,36 @@ namespace SimpleSlide
         [MethodImpl(MethodImplOptions.NoOptimization)]
         private void App_UnhandledException(object sender, Windows.UI.Xaml.UnhandledExceptionEventArgs e)
         {
-            /*
+            /**/
             String mStr = e.Message;
             Exception ex = e.Exception;
 
             // Retrieve the stack trace string
             String stackTrace = ex.StackTrace;
 
-            Debug.WriteLine(mStr);
-            Debug.WriteLine(ex);
-            Debug.WriteLine(stackTrace);
+            //Debug.WriteLine(mStr);
+            //Debug.WriteLine(ex);
+            //Debug.WriteLine(stackTrace);
 
             GC.KeepAlive(mStr);
             GC.KeepAlive(ex);
             GC.KeepAlive(stackTrace);
-            */
+
+            Err_Dialog(e);
+
+            /**/
             e.Handled = false;
+        }
+
+        private async void Err_Dialog(Windows.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            var msgDialog = new ContentDialog()
+            {
+                Title = "App_UnhandledException ",
+                Content = e.Message,
+                CloseButtonText = SimpleSlide.Strings.ContiueStr
+            };
+            await msgDialog.ShowAsync();
         }
 
         /// <inheritdoc/>

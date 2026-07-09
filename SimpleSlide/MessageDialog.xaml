@@ -8,10 +8,12 @@
     mc:Ignorable="d"
     Title="TITLE"
     PrimaryButtonText="OK"
-    SecondaryButtonText="Cancel"
     PrimaryButtonClick="ContentDialog_PrimaryButtonClick"
-    SecondaryButtonClick="ContentDialog_SecondaryButtonClick"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <!--
+    SecondaryButtonText="Cancel"
+    SecondaryButtonClick="ContentDialog_SecondaryButtonClick"
+    -->
 
     <Grid>
         <StackPanel Orientation="Vertical">
