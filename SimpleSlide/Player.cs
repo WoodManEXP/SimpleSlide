@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
+    using System.Threading.Tasks;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Storage;
@@ -57,6 +55,7 @@ namespace SimpleSlide
         private MediaList MediaList { get; set; }
         public String? PickedFolderToken { get; set; }
         private IProgress<String> FNameProgress { get; set; }
+        private CommandProgress<int> CommandProgress { get; set; }
         private Boolean OnXBox { get; set; }
 
         // For passing commands from UI to Player
@@ -65,10 +64,11 @@ namespace SimpleSlide
         public Boolean MediaListLoaded { get; set; }
         public Boolean AcceptingCommands { get; set; } = true; // Commands set while this is false will be ignored
         ThreadPoolTimer? NextImageTimer { get; set; } = null;
-        public Image[] ImagePane { get; set; } = new Image[2];
-        public MediaPlayerElement[] VideoPane { get; set; } = new MediaPlayerElement[2];
+        public Image[] Image { get; set; } = new Image[2];
+        public MediaPlayerElement MediaPlayerElement { get; set; }
         public Storyboard[] MediaStoryBoard { get; set; } = new Storyboard[2];
         public DoubleAnimation[] MediaAnimation { get; set; } = new DoubleAnimation[2];
+        public MediaTransportControls TransportControl { get; set; }
         public ProgressRing? WorkingThing { get; set; }
         private Boolean PlayPrevious { get; set; } = false;
 
@@ -78,12 +78,13 @@ namespace SimpleSlide
         /// <param name="fNameProgress"></param>
         /// <param name="progressBarProgress"></param>
         [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.MediaList(Progress<String>)")]
-        public Player(String pickedFolderToken, Progress<String> fNameProgress)
+        public Player(String pickedFolderToken, Progress<String> fNameProgress, CommandProgress<int> commandProgress)
         {
 
             MediaList = new(fNameProgress);
             PickedFolderToken = pickedFolderToken;
             FNameProgress = fNameProgress;
+            CommandProgress = commandProgress;
             CommandQueue = new();
             CurrentPlayerState = PlayerState.DoingNothing; // Doing Nothing;
             MediaListLoaded = false;
@@ -188,6 +189,8 @@ namespace SimpleSlide
                                 }
                                 SetWorkingThing(false);
                                 NextImageHandler(null); // At differet folder, show image
+
+                                CommandProgress.Report(0);
                             }
                             break;
                         default:
@@ -210,8 +213,8 @@ namespace SimpleSlide
                 (Windows.UI.Core.DispatchedHandler)(async () =>
                 {
                     // Set no media
-                    ImagePane[0].Source = ImagePane[1].Source = null;
-                    VideoPane[0].Source = VideoPane[1].Source = null;
+                    Image[0].Source = Image[1].Source = null;
+                    MediaPlayerElement.Source = null;
                 })
             );
         }
@@ -328,41 +331,38 @@ namespace SimpleSlide
         }
 
         private int FadeInNum { get; set; } = 0;
-        private Duration OtherDuration { get; set; } = new Duration(TimeSpan.FromSeconds(0));
+        private Duration OtherDuration { get; set; } = new Duration(TimeSpan.FromSeconds(0.5));
         private Duration ThisDuration { get; set; } = new Duration(TimeSpan.FromSeconds(1));
 
         //[MethodImpl(MethodImplOptions.NoOptimization)]
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sF"></param>
+        /// <remarks>
+        /// this - the new media to be shown
+        /// other - the media that was being shown
+        /// </remarks>
+        /// <returns></returns>
         private async Task ShowMedia(StorageFile? sF)
         {
             if (null == sF)
                 return;
-
-            /*
-                no media -> image	Fadeout nothing			Fadein this image
-                no media -> video	Fadeout nothing			Fadein this video
-                image -> image		Fadeout other image		Fadein this image	
-                image -> video		Fadeout other image		Fadein this video
-                video -> video		Fadeout other video		Fadein this video
-                video -> image		Fadeout other video		Fadein this image
-            */
 
             // Is the incoming sF image or video?
             Boolean thisIsAnImage = (MediaList.ImageFileTypes.Contains(sF.FileType.ToUpperInvariant())) ? true : false;
             Boolean otherIsAnImage = (MediaType.Video == ThisMediaType) ? false : true;
 
             Image thisImage, otherImage;
-            MediaPlayerElement thisMediaPlayerElement, otherMediaPlayerElement;
             Storyboard thisStoryboard, otherStoryboard;
             DoubleAnimation thisAnimation, otherAnimation;
 
             // Select image/video element and storyboard, moving back and forth between the two.
-            thisImage = ImagePane[FadeInNum];
-            thisMediaPlayerElement = VideoPane[FadeInNum];
+            thisImage = Image[FadeInNum];
             thisStoryboard = MediaStoryBoard[FadeInNum];
             thisAnimation = MediaAnimation[FadeInNum];
             FadeInNum = (0 == FadeInNum) ? 1 : 0;
-            otherImage = ImagePane[FadeInNum]; // This'll be the currently displayed media
-            otherMediaPlayerElement = VideoPane[FadeInNum];
+            otherImage = Image[FadeInNum]; // This'll be the currently displayed media
             otherStoryboard = MediaStoryBoard[FadeInNum];
             otherAnimation = MediaAnimation[FadeInNum];
 
@@ -378,49 +378,18 @@ namespace SimpleSlide
                     Windows.UI.Core.CoreDispatcherPriority.Normal,
                     async () =>
                 {
-                    try
-                    {
-                        thisStoryboard.Stop();
-                        otherStoryboard.Stop();
+                    thisStoryboard.Stop();
+                    otherStoryboard.Stop();
 
-                        // Prep/target Storyboards and Animations for fade in/out
-                        switch (OtherMediaType)
-                        {
-                            case MediaType.Image:
-                                Storyboard.SetTargetName(otherAnimation, otherImage.Name);
-                                break;
-                            case MediaType.Video:
-                                Storyboard.SetTargetName(otherAnimation, otherMediaPlayerElement.Name);
-                                break;
-                            default:    // LastMedia.None
-                                //fadeOut = false;
-                                break;
-                        }
-
-                        switch (ThisMediaType)
-                        {
-                            case MediaType.Image:
-                                Storyboard.SetTargetName(thisAnimation, thisImage.Name);
-                                break;
-                            default: // case LastMedia.Video:
-                                Storyboard.SetTargetName(thisAnimation, thisMediaPlayerElement.Name);
-                                break;
-                        }
-
-                        // For making existing media disappear
-                        otherAnimation.Duration = OtherDuration;
-                        otherAnimation.From = 1D;
-                        otherAnimation.To = 0D;
-
-                        // For making new media appear
-                        thisAnimation.Duration = ThisDuration;
-                        thisAnimation.From = 0D;
-                        thisAnimation.To = 1D;
-                    }
-                    catch (Exception ex)
-                    {
-                        String mStr = ex.Message;
-                    }
+                    // Prep/target Storyboards and Animations for fade in/out
+                    Storyboard.SetTargetName(otherAnimation, otherImage.Name);
+                    Storyboard.SetTargetName(thisAnimation, thisImage.Name);
+                    otherAnimation.Duration = OtherDuration;    // For making existing media disappear
+                    otherAnimation.From = 1D;
+                    otherAnimation.To = 0D;      
+                    thisAnimation.Duration = ThisDuration;      // For making new media appear
+                    thisAnimation.From = 0D;
+                    thisAnimation.To = 1D;
 
                     if (thisIsAnImage)
                     {
@@ -435,13 +404,16 @@ namespace SimpleSlide
                             bitmapImage.DecodePixelWidth = (int)thisImage.Width; //match the target Image.Width, not shown
                             bitmapImage.ImageOpened += (s, e) =>
                             {
-                                //if (fadeOut)
-                                //    otherStoryboard.Begin();
-                                thisStoryboard.Begin();
-                                ReleaseMedia(otherMediaPlayerElement, otherImage);
+                                thisStoryboard.Begin();         // Fade-in new image
+                                if (otherIsAnImage)
+                                    otherStoryboard.Begin();    // Fade-out previous image
+                                else
+                                {   // Hide previous video pae and controls
+                                    MediaPlayerElement.Visibility = Visibility.Collapsed;
+                                    TransportControl.Visibility = Visibility.Collapsed;
+                                }
+                                ReleaseMedia(MediaPlayerElement, otherImage);
                             };
-                            otherStoryboard.Begin();
-
                             IRandomAccessStream fileStream = await sF.OpenAsync(Windows.Storage.FileAccessMode.Read);
                             await bitmapImage.SetSourceAsync(fileStream);
                             thisImage?.Source = bitmapImage;
@@ -455,34 +427,18 @@ namespace SimpleSlide
                     {
                         try
                         {
-                            var mediaPlayer = new MediaPlayer
-                            {
-                                AutoPlay = true,
-                                Source = MediaSource.CreateFromStorageFile(sF)
-                            };
-                            thisMediaPlayerElement.SetMediaPlayer(mediaPlayer);
+                            ReleaseMedia(MediaPlayerElement, otherImage);
 
-                            mediaPlayer.MediaOpened += (MediaPlayer sender, object args) =>
-                            {
-                                //if (fadeOut)
-                                //        otherStoryboard.Begin();
-                                //    thisStoryboard.Begin();
-                                //    ReleaseMedia(otherMediaPlayerElement, otherImage);
-                            };
-                            mediaPlayer.MediaEnded += (MediaPlayer sender, object args) =>
-                            {
-                                // Move to next media whe video is completed
-                                // Send Next image command to Player
-                                this.CommandQueue.Enqueue(new PlayerCommand()
-                                {
-                                    Command = PlayerCommand.PlayerCommands.NextMedia
-                                });
-                            };
+                            MediaPlayerElement.Source = MediaSource.CreateFromStorageFile(sF);
 
-                            otherStoryboard.Begin();
-                            thisStoryboard.Begin();
-                            ReleaseMedia(otherMediaPlayerElement, otherImage);
-                            mediaPlayer.Play();
+                            // (Re)set event handler(s)
+                            // Necessary after MediaSource changes.
+                            MediaPlayerElement.MediaPlayer.MediaEnded -= MediaEnded;
+                            MediaPlayerElement.MediaPlayer.MediaEnded += MediaEnded;
+
+                            MediaPlayerElement.Visibility = Visibility.Visible;
+                            TransportControl.Visibility = Visibility.Visible;
+                            MediaPlayerElement.MediaPlayer.Play();
                         }
                         catch (Exception ex)
                         {
@@ -493,11 +449,30 @@ namespace SimpleSlide
                 );
             FNameProgress.Report(MediaList.CurrentFolderName(true) + sF.Name);
         }
+
+        /// <summary>
+        /// Handle MediaEnded event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void MediaEnded(MediaPlayer sender, object args)
+        {
+            // Move to next media whe video is completed
+            // Send Next image command to Player
+            this.CommandQueue.Enqueue(new PlayerCommand()
+            {
+                Command = PlayerCommand.PlayerCommands.NextMedia
+            });
+        }
+
         /// <summary>
         /// Release resoures that were associated with a XAML MediaPlayerElement
         /// </summary>
         /// <param name="mpe">MediaPlayerElement</param>
         /// <param name="image">Image elemet</param>
+        /// <remarks>
+        /// probaby no need for this as garbage would eventually collect the o longer referenced resoures
+        /// </remarks>
         private void ReleaseMedia(MediaPlayerElement mpe, Image image)
         {
             // Free resources from previous video, if there was one
@@ -507,8 +482,6 @@ namespace SimpleSlide
                 IMediaPlaybackSource source = mediaPlayer.Source;
                 if (source is MediaSource mediaSource)
                     mediaSource.Dispose();
-                mediaPlayer.Dispose();
-                mpe.SetMediaPlayer(null);
             }
             if (null != image)
                 image.Source = null;

@@ -13,14 +13,14 @@
                              Storyboard.TargetName="Image0"
                              Storyboard.TargetProperty="Opacity" 
                              From="0.0" To="1.0" Duration="0:0:1"/>
-            <!-- These and TargetName are set in code-behind -->
+            <!-- From, To, Duration, and TargetName are set in code-behind -->
         </Storyboard>
         <Storyboard x:Name="Storyboard1">
             <DoubleAnimation x:Name="Animation1"
                              Storyboard.TargetName="Video0"
                              Storyboard.TargetProperty="Opacity" 
                              From="0.0" To="1.0" Duration="0:0:1"/>
-            <!-- These and TargetName are set in code-behind -->
+            <!-- From, To, Duration, and TargetName are set in code-behind -->
         </Storyboard>
     </Page.Resources>
     <Grid Background="DarkGray" KeyDown="KeyDownEvent">
@@ -30,22 +30,12 @@
         </Grid.RowDefinitions>
         <Image x:Name="Image0" Grid.Row="0"/>
         <Image x:Name="Image1" Grid.Row="0"/>
-        <MediaPlayerElement x:Name="Video0" AreTransportControlsEnabled="False" Opacity="0.0" Grid.Row="0">
+        <MediaPlayerElement x:Name="MediaPlayerElement0" AreTransportControlsEnabled="True" Visibility="Collapsed" 
+                            AutoPlay="True" Grid.Row="0">
             <MediaPlayerElement.TransportControls>
-                <MediaTransportControls IsCompact="True"
+                <MediaTransportControls x:Name="TransportControl0" IsCompact="True"
                                 IsFullWindowButtonVisible="False"
                                 IsZoomButtonVisible="False" 
-                                IsPlaybackRateButtonVisible="False"
-                                IsSkipForwardButtonVisible="True"
-                                IsSkipBackwardButtonVisible="True"
-                                IsStopButtonVisible="True" />
-            </MediaPlayerElement.TransportControls>
-        </MediaPlayerElement>
-        <MediaPlayerElement x:Name="Video1" AreTransportControlsEnabled="True" Opacity="0.0" Grid.Row="0">
-            <MediaPlayerElement.TransportControls>
-                <MediaTransportControls IsCompact="True"
-                                IsFullWindowButtonVisible="False"
-                                IsZoomButtonVisible="False"
                                 IsPlaybackRateButtonVisible="False"
                                 IsSkipForwardButtonVisible="True"
                                 IsSkipBackwardButtonVisible="True"

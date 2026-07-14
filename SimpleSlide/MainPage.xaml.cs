@@ -25,6 +25,7 @@ namespace SimpleSlide
     {
         private String PickedFolderTokenName { get; } = "PickedFolderToken";
         public Progress<String> FNameProgress { get; set; }
+        private CommandProgress<int> CommandProgress { get; set; }
         private Player Player { get; set; }
 
         // XBox controller
@@ -72,18 +73,23 @@ namespace SimpleSlide
 
             FNameProgress = new Progress<String>();
 
+            // Reeives progress info from the Player thread avtivities
+            CommandProgress = new CommandProgress<int>(CommandProgressReport);
+
             // If a DelayBetweenImges setting was saved, go with that.
             int oInt;
             if (ApplicationDataContainer.Values.TryGetValue(AppDataKeys.CurrSpeedIndex, out Object? oValue))
                 if (int.TryParse(oValue as String, out oInt))
                     CurrSpeedIndex = oInt;
 
-            Player = new(PickedFolderTokenName, FNameProgress)
+            // Instantiate player
+            Player = new(PickedFolderTokenName, FNameProgress, CommandProgress)
             {
-                ImagePane = [Image0, Image1], // The XAML image elements
-                VideoPane = [Video0, Video1],
+                Image = [Image0, Image1], // The XAML image elements
+                MediaPlayerElement = MediaPlayerElement0,
                 MediaStoryBoard = [Storyboard0, Storyboard1],
                 MediaAnimation = [Animation0, Animation1],
+                TransportControl = TransportControl0,
                 DelayBetweenImges = PlaySpeeds[CurrSpeedIndex],
                 WorkingThing = WorkingThing // ProgressRing
             };
@@ -99,6 +105,11 @@ namespace SimpleSlide
 
             // Start the player
             _ = Player.Play(); // Player runs on another thread.
+        }
+
+        private void CommandProgressReport(int i)
+        {
+
         }
 
         #region XBoxController
@@ -419,14 +430,14 @@ namespace SimpleSlide
             switch (nextOrPrevious)
             {
                 case NextOrPrevious.Previous:
-                    // Send Previous image command to Player
+                    // Send Previous folder command to Player
                     Player.CommandQueue.Enqueue(new PlayerCommand()
                     {
                         Command = PlayerCommand.PlayerCommands.PrevFolder
                     });
                     break;
                 default:
-                    // Send Next image command to Player
+                    // Send Next folder command to Player
                     Player.CommandQueue.Enqueue(new PlayerCommand()
                     {
                         Command = PlayerCommand.PlayerCommands.NextFolder
