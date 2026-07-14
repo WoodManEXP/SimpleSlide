@@ -1,32 +1,40 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace SimpleSlide
 {
-    /// <summary>
-    /// https://jeremybytes.blogspot.com/2016/12/simple-progress-reporting-with-task.html
-    /// </summary>
-    internal class CommandProgress<T> : IProgress<T>
+    public enum CommandSignals
     {
-        public enum CommandSignals
-        {
-            MovementUnderway, MovementCleared
-        }
+        MovementUnderway, MovementNotUnderway
+    }
 
-        public Boolean MovementUderway { get; set; }
-
-        public CommandProgress()
-        {
-        }
-
+    /// <summary>
+    /// Catches and holds status from command processing 
+    /// </summary>
+    /// <remarks>
+    /// Progress/IProgress is a recommended method for inter-thread communications. This
+    /// latches onto it to help the UI and Player threads share status info.
+    /// </remarks>
+    internal class CommandProgress<T> : Progress<T>
+    {
+        public CommandSignals CurrentMovement { get; set; } = CommandSignals.MovementNotUnderway;
+        public CommandProgress() : base() { }
         public CommandProgress(Action<T> handler) : base(handler)
         {
         }
-
-        public void Report(T value)
+        protected override void OnReport(T value)
         {
-            throw new NotImplementedException();
+            switch(value)
+            {
+                case CommandSignals.MovementUnderway:
+                    CurrentMovement = CommandSignals.MovementUnderway;
+                    break;
+                case CommandSignals.MovementNotUnderway:
+                    CurrentMovement = CommandSignals.MovementNotUnderway;
+                    break;
+                default:
+                    break;
+            }
+            base.OnReport(value);
         }
     }
 }

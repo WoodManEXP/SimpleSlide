@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Diagnostics.CodeAnalysis;
-    using System.Threading.Tasks;
+using System.Threading.Tasks;
 using Windows.Media.Core;
 using Windows.Media.Playback;
 using Windows.Storage;
@@ -55,7 +55,7 @@ namespace SimpleSlide
         private MediaList MediaList { get; set; }
         public String? PickedFolderToken { get; set; }
         private IProgress<String> FNameProgress { get; set; }
-        private CommandProgress<int> CommandProgress { get; set; }
+        private IProgress<CommandSignals> CommandProgress { get; set; }
         private Boolean OnXBox { get; set; }
 
         // For passing commands from UI to Player
@@ -78,7 +78,7 @@ namespace SimpleSlide
         /// <param name="fNameProgress"></param>
         /// <param name="progressBarProgress"></param>
         [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.MediaList(Progress<String>)")]
-        public Player(String pickedFolderToken, Progress<String> fNameProgress, CommandProgress<int> commandProgress)
+        public Player(String pickedFolderToken, Progress<String> fNameProgress, Progress<CommandSignals> commandProgress)
         {
 
             MediaList = new(fNameProgress);
@@ -167,6 +167,7 @@ namespace SimpleSlide
                                 NextImageTimer?.Cancel(); NextImageTimer = null;
                                 PlayPrevious = (PlayerCommand.PlayerCommands.PrevMedia == playerCommand.Command) ? true : false;
                                 NextImageHandler(null);
+                                CommandProgress.Report(CommandSignals.MovementNotUnderway);
                             }
                             break;
                         case PlayerCommand.PlayerCommands.PrevFolder:
@@ -187,10 +188,9 @@ namespace SimpleSlide
                                     FNameProgress.Report(SimpleSlide.Strings.FolderNext);
                                     await MediaList.StackNextFolder();
                                 }
-                                SetWorkingThing(false);
                                 NextImageHandler(null); // At differet folder, show image
-
-                                CommandProgress.Report(0);
+                                SetWorkingThing(false);
+                                CommandProgress.Report(CommandSignals.MovementNotUnderway);
                             }
                             break;
                         default:
@@ -386,7 +386,7 @@ namespace SimpleSlide
                     Storyboard.SetTargetName(thisAnimation, thisImage.Name);
                     otherAnimation.Duration = OtherDuration;    // For making existing media disappear
                     otherAnimation.From = 1D;
-                    otherAnimation.To = 0D;      
+                    otherAnimation.To = 0D;
                     thisAnimation.Duration = ThisDuration;      // For making new media appear
                     thisAnimation.From = 0D;
                     thisAnimation.To = 1D;

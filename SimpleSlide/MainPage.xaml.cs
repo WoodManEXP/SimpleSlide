@@ -25,7 +25,7 @@ namespace SimpleSlide
     {
         private String PickedFolderTokenName { get; } = "PickedFolderToken";
         public Progress<String> FNameProgress { get; set; }
-        private CommandProgress<int> CommandProgress { get; set; }
+        private CommandProgress<CommandSignals> CommandProgress { get; set; }
         private Player Player { get; set; }
 
         // XBox controller
@@ -74,7 +74,7 @@ namespace SimpleSlide
             FNameProgress = new Progress<String>();
 
             // Reeives progress info from the Player thread avtivities
-            CommandProgress = new CommandProgress<int>(CommandProgressReport);
+            CommandProgress = new CommandProgress<CommandSignals>();
 
             // If a DelayBetweenImges setting was saved, go with that.
             int oInt;
@@ -391,6 +391,10 @@ namespace SimpleSlide
         }
         private void ControllerNextOrPrevMedia(NextOrPrevious nextOrPrevious)
         {
+            // Ignore if a movemet command is currently in progress
+            if (CommandSignals.MovementUnderway == CommandProgress.CurrentMovement)
+                return;
+
             // Limit how often these are processed
             DateTime now = DateTime.Now;
             TimeSpan interval = now - LastNextOrPreviousDT;
@@ -398,6 +402,9 @@ namespace SimpleSlide
                 return;
 
             LastNextOrPreviousDT = now;
+
+            // Signal a movement command is underway 
+            ((IProgress<CommandSignals>)CommandProgress).Report(CommandSignals.MovementUnderway);
 
             switch (nextOrPrevious)
             {
@@ -419,6 +426,10 @@ namespace SimpleSlide
         }
         private void ControllerNextOrPrevFolder(NextOrPrevious nextOrPrevious)
         {
+            // Ignore if a movemet command is currently in progress
+            if (CommandSignals.MovementUnderway == CommandProgress.CurrentMovement)
+                return;
+
             // Limit how often these are processed
             DateTime now = DateTime.Now;
             TimeSpan interval = now - LastNextOrPreviousDT;
@@ -426,6 +437,9 @@ namespace SimpleSlide
                 return;
 
             LastNextOrPreviousDT = now;
+
+            // Signal a movement command is underway 
+            ((IProgress<CommandSignals>)CommandProgress).Report(CommandSignals.MovementUnderway);
 
             switch (nextOrPrevious)
             {
