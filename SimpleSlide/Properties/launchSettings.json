@@ -21,7 +21,7 @@
     "SimpleSlide HH XBox": {
       "commandName": "MsixPackage",
       "remoteDebugEnabled": true,
-      "remoteDebugMachine": "10.153.162.109",
+      "remoteDebugMachine": "10.153.162.106",
       "authenticationMode": "Universal"
     }
   }

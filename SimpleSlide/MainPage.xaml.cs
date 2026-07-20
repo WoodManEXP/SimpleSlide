@@ -67,8 +67,8 @@ namespace SimpleSlide
             PackageId packageId = package.Id;
             PackageVersion version = packageId.Version;
             String vStr = version.Major.ToString() + "." + version.Minor.ToString() + "."
-                          + version.Revision.ToString() + "." + version.Build.ToString();
-            ApplicationView.GetForCurrentView().Title = vStr;   // In tite bar for non-XBox
+                          /*+ version.Revision.ToString()*/ + "." + version.Build.ToString();
+            ApplicationView.GetForCurrentView().Title = vStr;   // In title bar for non-XBox
             VersionXBox.Text = vStr;                            // Shows up this way on XBox
 
             FNameProgress = new Progress<String>();
@@ -354,7 +354,9 @@ namespace SimpleSlide
 
             LastPauseOrContinueDT = now;
 
-            //   Debug.WriteLine("PauseOrContiue " + what.ToString());
+            // Pause/Continue is ignored when urrent media is video
+            if (Player.MediaType.Video == Player.ThisMediaType)
+                return;
 
             if (PauseOrContinue.Pause == what)
             {

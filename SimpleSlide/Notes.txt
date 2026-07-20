@@ -3,7 +3,7 @@
 Vid
 https://learn.microsoft.com/en-us/windows/apps/develop/ui/controls/media-playback
 
-- Prev/Next folder (L,R trigger) (Shift+eft arrow, Shift+right arrow)
+- Prev/Next folder (L,R trigger) (Shift+left arrow, Shift+right arrow)
 - Correct issues with timing mechanism
 - Play video
 - ??? Hide cursor during cursor inactivity "UWP app hide cursor during inactivity"

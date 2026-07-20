@@ -46,11 +46,11 @@ namespace SimpleSlide
             DoingNothing, Playing, Paused
         }
         public PlayerState CurrentPlayerState { get; set; }
-        private enum MediaType
+        public enum MediaType
         {
             None, Image, Video
         }
-        private MediaType ThisMediaType { get; set; } = MediaType.None;
+        public MediaType ThisMediaType { get; private set; } = MediaType.None;
         private MediaType OtherMediaType { get; set; } = MediaType.None;
         private MediaList MediaList { get; set; }
         public String? PickedFolderToken { get; set; }
@@ -151,7 +151,7 @@ namespace SimpleSlide
                             CurrentPlayerState = PlayerState.Playing;
                             // Thread to play the images
                             NextImageTimer?.Cancel(); NextImageTimer = null;
-                            NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
+                            NextImageTimer = ThreadPoolTimer.CreateTimer(NextMediaHandler
                                                     , TimeSpan.FromMilliseconds(DelayBetweenImges));
                             MediaListLoaded = true;
                             SetWorkingThing(false);
@@ -166,7 +166,7 @@ namespace SimpleSlide
                                 // Kill timer, immediately move to next/prev image
                                 NextImageTimer?.Cancel(); NextImageTimer = null;
                                 PlayPrevious = (PlayerCommand.PlayerCommands.PrevMedia == playerCommand.Command) ? true : false;
-                                NextImageHandler(null);
+                                NextMediaHandler(null);
                                 CommandProgress.Report(CommandSignals.MovementNotUnderway);
                             }
                             break;
@@ -188,7 +188,7 @@ namespace SimpleSlide
                                     FNameProgress.Report(SimpleSlide.Strings.FolderNext);
                                     await MediaList.StackNextFolder();
                                 }
-                                NextImageHandler(null); // At differet folder, show image
+                                NextMediaHandler(null); // At differet folder, show image
                                 SetWorkingThing(false);
                                 CommandProgress.Report(CommandSignals.MovementNotUnderway);
                             }
@@ -249,7 +249,7 @@ namespace SimpleSlide
         private void ContinuePlaying()
         {
             CurrentPlayerState = PlayerState.Playing;
-            NextImageHandler(null); // Fire the timer delegate
+            NextMediaHandler(null); // Fire the timer delegate
         }
 
         /// <summary>
@@ -258,14 +258,19 @@ namespace SimpleSlide
         /// <param name="timer"></param>
         [RequiresDynamicCode("Calls SimpleSlide.Player.NextOrPrevImage()")]
         [RequiresUnreferencedCode("Calls SimpleSlide.Player.NextOrPrevImage()")]
-        private async void NextImageHandler(ThreadPoolTimer? timer)
+        private async void NextMediaHandler(ThreadPoolTimer? timer)
         {
             if (MediaListLoaded)
             {
                 AcceptingCommands = false;
+
+                // Ensure imer stopped
+                NextImageTimer?.Cancel();
+                NextImageTimer = null;
+
                 try
                 {
-                    await NextOrPrevImage();
+                    await NextOrPrevMedia();
                 }
                 catch (NoMediaException)
                 {
@@ -302,20 +307,17 @@ namespace SimpleSlide
 
             PlayPrevious = false; // Default state is to progress forward
 
-            if (CurrentPlayerState == PlayerState.Playing)
-                // Schedule to return in DelayBetweenImges milliseconds
-                NextImageTimer?.Cancel(); NextImageTimer = null;
-
-            // If a video just started do not schedule the timer. When the video finishes or
-            // next/prev command comes through things will move to next media.
-            if (MediaType.Video != ThisMediaType)
-                NextImageTimer = ThreadPoolTimer.CreateTimer(NextImageHandler
+            // If current media is not a Vid and playing is not Paused then schedule the timer.
+            // Schedule to return in DelayBetweenImges milliseconds
+            // (When a video finishes or next/prev command comes through things will progress)
+            if (MediaType.Video != ThisMediaType && PlayerState.Paused != CurrentPlayerState)
+                NextImageTimer = ThreadPoolTimer.CreateTimer(NextMediaHandler
                             , TimeSpan.FromMilliseconds(DelayBetweenImges));
         }
 
         [RequiresDynamicCode("Calls SimpleSlide.MediaList.GetNextMedia()")]
         [RequiresUnreferencedCode("Calls SimpleSlide.MediaList.GetNextMedia()")]
-        private async Task NextOrPrevImage()
+        private async Task NextOrPrevMedia()
         {
             StorageFile? sF;
 
@@ -447,7 +449,12 @@ namespace SimpleSlide
                     }
                 }
                 );
-            FNameProgress.Report(MediaList.CurrentFolderName(true) + sF.Name);
+
+            // Show file info, adding the Paused string, if Paused.
+            String aStr = MediaList.CurrentFolderName(true) + sF.Name;
+            if (PlayerState.Paused==CurrentPlayerState)
+                aStr = SimpleSlide.Strings.Paused + " " + aStr;
+            FNameProgress.Report(aStr);
         }
 
         /// <summary>
